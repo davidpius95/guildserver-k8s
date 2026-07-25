@@ -238,7 +238,7 @@ flowchart LR
 
 ---
 
-## 7. Layer 5 — Storage  ⚪ ROADMAP (Phase 5)
+## 7. Layer 5 — Storage  🟢 LIVE (Phase 5)
 
 ```mermaid
 flowchart LR
@@ -258,6 +258,10 @@ flowchart LR
   exists. Stateful workloads (databases, queues) can run for real.
 - **Enterprise problem solved:** *Dynamic, durable, self-service storage for stateful apps*
   — the role of AWS EBS CSI or a storage vendor's driver.
+- **Live status:** ceph-csi-rbd v3.17.0 installed against a dedicated `k8s-rbd` pool
+  (`size=3`) with a scoped `client.k8s` cephx user. Verified end-to-end: a `PVC` bound,
+  ceph-csi created the RBD image in the Ceph pool, and a pod read/wrote it via `/dev/rbd0`.
+  Config in [`infra/ceph-csi/`](../infra/ceph-csi/).
 
 ---
 
@@ -368,7 +372,7 @@ flowchart LR
 | Helm | 3.21 | Tooling | Package manager | 🟢 |
 | GitHub Actions | — | CI/CD | Lint/validate manifests | 🟢 |
 | Gitpod | — | Dev env | Browser k8s toolbox | 🟢 |
-| Ceph-CSI | — | Storage | Dynamic PVs | ⚪ |
+| Ceph-CSI | 3.17.0 | Storage | Dynamic PVs on `k8s-rbd` pool | 🟢 |
 | MetalLB | — | Edge | Bare-metal LoadBalancer | ⚪ |
 | ingress-nginx | — | Edge | HTTP ingress | ⚪ |
 | ArgoCD | — | GitOps | Git→cluster reconcile | ⚪ |
@@ -395,12 +399,29 @@ flowchart LR
 
 ---
 
-## 15. Current status
+## 15. Known limitations & planned hardening
+
+**Control-plane I/O fragility.** The control-plane VM (cp-1: 2 vCPU / 4 GB) has its root
+disk on Ceph RBD, and etcd's latency-sensitive fsyncs share that disk with container image
+unpacking. Under a sustained I/O burst (e.g. pulling large images during an install), cp-1
+hits very high iowait, etcd/apiserver stall, and kube-vip briefly drops the VIP — causing a
+short API flap that cascades into leader-election restarts (cilium-operator, CSI sidecars).
+It self-recovers in seconds and steady state is stable, but it interrupts heavy installs.
+
+*Mitigations in place:* a direct-to-node kubeconfig (`config-direct`, server `…8.60:6443`)
+keeps `kubectl` working during a VIP flap; kube-vip leader election is disabled on the
+single CP.
+
+*Planned fix (recommended):* move etcd onto a **local-lvm (NVMe) disk** on cp-1 to remove
+the fsync-latency root cause, and optionally bump cp-1 RAM to 8 GB for page cache. Tracked
+for the day-2 / HA-growth phase.
+
+## 16. Current status
 
 **🟢 Live and verified:** a 3-node Kubernetes v1.36.3 cluster (1 control-plane + 2 workers)
-with an HA API VIP, Cilium eBPF networking, CoreDNS, Hubble, and a GitOps repo with CI.
-End-to-end verified: multi-node pod scheduling, Service DNS, and cross-node pod networking.
+with an HA API VIP, Cilium eBPF networking, CoreDNS, Hubble, **Ceph-CSI dynamic storage**,
+and a GitOps repo with CI. End-to-end verified: multi-node pod scheduling, Service DNS,
+cross-node pod networking, and a PVC provisioning a real RBD volume from Ceph.
 
-**⚪ Next:** Ceph-CSI storage (Phase 5) → MetalLB + ingress to the Cloudflare edge (Phase 6)
-→ ArgoCD (Phase 7) → observability (Phase 8) → security/policy (Phase 9) → backups & HA
-growth (Phase 10).
+**⚪ Next:** MetalLB + ingress to the Cloudflare edge (Phase 6) → ArgoCD (Phase 7) →
+observability (Phase 8) → security/policy (Phase 9) → backups & HA growth (Phase 10).
