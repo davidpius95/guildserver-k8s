@@ -1,0 +1,35 @@
+# Headlamp — lightweight web UI to manage the cluster (nodes, pods, workloads, logs,
+# exec). Deployed by Argo CD, exposed at headlamp.guildserver.io. Access is gated by a
+# token pasted at login (SA headlamp:headlamp-admin) — keep that token secret.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: headlamp
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: headlamp
+  source:
+    repoURL: https://kubernetes-sigs.github.io/headlamp/
+    chart: headlamp
+    targetRevision: 0.43.0
+    helm:
+      valuesObject:
+        replicaCount: 1
+        resources:
+          requests: {cpu: 20m, memory: 64Mi}
+          limits: {memory: 128Mi}
+        ingress:
+          enabled: true
+          ingressClassName: nginx
+          hosts:
+            - host: headlamp.guildserver.io
+              paths:
+                - path: /
+                  type: Prefix
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions:
+      - CreateNamespace=true
