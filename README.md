@@ -13,7 +13,11 @@ it was built.
 
 > 📐 **[Full architecture & design doc → `docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** —
 > every layer, component, and dependency explained, the enterprise problem each one solves,
-> and diagrams of the stack, networking, storage, edge, and GitOps flows.
+> and diagrams of the stack, communication flows, networking, storage, edge, and GitOps.
+>
+> 📚 **[Learning journal → `docs/LEARNING-JOURNAL.md`](docs/LEARNING-JOURNAL.md)** — the
+> teaching companion: the reasoning at each step, every bug→diagnosis→fix, how it maps to
+> enterprise/datacenter practice, and a path to becoming an expert.
 
 ## Cluster at a glance
 

@@ -87,6 +87,49 @@ Plane), which relies on Cluster Services (networking, storage, DNS) that are orc
 by the Control Plane, all running on the Node OS, hosted on virtualized hardware. Each
 layer below is a dependency of the layer above.
 
+### 2a. Communication flow — how the components talk
+
+**Request lifecycle** (north–south: a user's request reaching an app and its data):
+
+```mermaid
+sequenceDiagram
+    participant U as User / Client
+    participant CF as Cloudflare
+    participant CA as Caddy (CT910)
+    participant IN as ingress-nginx
+    participant SV as Service (eBPF)
+    participant PO as Pod (app)
+    participant CE as Ceph (RBD)
+    U->>CF: HTTPS :443 (TLS, WAF, DDoS)
+    CF->>CA: encrypted tunnel (no open ports)
+    CA->>IN: HTTP + Host header
+    IN->>SV: route by host/path
+    SV->>PO: load-balance to a healthy replica
+    PO->>CE: read/write volume (/dev/rbd)
+    CE-->>PO: data
+    PO-->>U: response (same path, reversed)
+```
+
+**Control loop** (how the cluster runs itself — declared state reconciled into reality):
+
+```mermaid
+flowchart LR
+    KC[kubectl / ArgoCD] -->|HTTPS :6443 via VIP .59| API[kube-apiserver]
+    API <-->|gRPC :2379| ETCD[(etcd · local NVMe)]
+    SCH[scheduler] -->|watch / update| API
+    CM[controllers] -->|watch / update| API
+    KL[kubelet ×3] -->|watch| API
+    KL -->|CRI gRPC| CRI[containerd → Pods]
+    KV[kube-vip] -.advertises VIP .59 via ARP.-> API
+    CIL[Cilium agents] -->|watch| API
+    CIL <-->|eBPF · VXLAN| CIL2[other nodes]
+    CSI[Ceph-CSI] -->|RBD :6789| MON[(Ceph mons)]
+```
+
+Every subsystem is the same pattern: **declare intent to the API server → a controller
+reconciles reality to match.** Storage, networking, ingress, and GitOps are all just more
+controllers watching the same API.
+
 ---
 
 ## 3. Layer 1–2 — Physical & Virtualization  🟢 LIVE
@@ -412,9 +455,11 @@ It self-recovers in seconds and steady state is stable, but it interrupts heavy 
 keeps `kubectl` working during a VIP flap; kube-vip leader election is disabled on the
 single CP.
 
-*Planned fix (recommended):* move etcd onto a **local-lvm (NVMe) disk** on cp-1 to remove
-the fsync-latency root cause, and optionally bump cp-1 RAM to 8 GB for page cache. Tracked
-for the day-2 / HA-growth phase.
+*Fix — DONE (2026-07-25):* etcd was moved onto a dedicated **local NVMe disk** on cp-1
+(`/var/lib/etcd` on `/dev/sdb`, via `/etc/fstab`), and cp-1 RAM bumped to **8 GB**. etcd was
+snapshot-backed-up first and the move validated with a reboot (etcd re-mounts from the local
+disk on boot; commit latency dropped from ~162 ms to ~80 ms and is now isolated from Ceph
+image-pull contention). This removes the fsync-latency root cause.
 
 ## 16. Current status
 
