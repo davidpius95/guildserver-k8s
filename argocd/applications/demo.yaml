@@ -1,0 +1,23 @@
+# The demo app, now managed by GitOps. Argo CD keeps the cluster's copy in sync
+# with apps/demo/ in Git: change the manifest, git push, and it reconciles (or
+# self-heals if someone edits the live resource by hand).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: demo
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/davidpius95/guildserver-k8s
+    targetRevision: main
+    path: apps/demo
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: demo
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,10 @@
+# Helm values for Argo CD — lean install for a small cluster.
+# Runs the API server in insecure (HTTP) mode because TLS is terminated upstream
+# at the Cloudflare edge / ingress; ingress-nginx talks plain HTTP to it.
+dex:
+  enabled: false          # no SSO needed
+notifications:
+  enabled: false          # trim footprint
+configs:
+  params:
+    server.insecure: true

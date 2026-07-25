@@ -1,0 +1,23 @@
+# App-of-apps root. Apply this ONCE with kubectl; Argo CD then manages everything
+# else from Git. It watches argocd/applications/ and syncs every Application it finds
+# there — so adding a new app later is just a new file + git push.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/davidpius95/guildserver-k8s
+    targetRevision: main
+    path: argocd/applications
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,19 @@
+# Public UI for Argo CD at argocd.guildserver.io (via ingress-nginx + Caddy edge).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server
+  namespace: argocd
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: argocd.guildserver.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  number: 80
