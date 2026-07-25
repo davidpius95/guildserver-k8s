@@ -1,0 +1,75 @@
+# Metrics + dashboards + alerting, deployed by Argo CD as a Helm Application.
+# Lean sizing for a 2-worker cluster; Prometheus & Grafana persist on Ceph.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 87.19.1
+    helm:
+      valuesObject:
+        alertmanager:
+          enabled: false        # trimmed to save footprint on the small cluster
+        prometheusOperator:
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+        kube-state-metrics:
+          resources:
+            requests: {cpu: 20m, memory: 64Mi}
+        prometheus-node-exporter:
+          resources:
+            requests: {cpu: 20m, memory: 32Mi}
+        prometheus:
+          prometheusSpec:
+            retention: 5d
+            # scrape ServiceMonitors/PodMonitors from any namespace, not just this release
+            serviceMonitorSelectorNilUsesHelmValues: false
+            podMonitorSelectorNilUsesHelmValues: false
+            resources:
+              requests: {cpu: 200m, memory: 512Mi}
+              limits: {memory: 1Gi}
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: ceph-rbd
+                  accessModes: [ReadWriteOnce]
+                  resources:
+                    requests:
+                      storage: 8Gi
+        grafana:
+          admin:
+            existingSecret: grafana-admin   # created out-of-band; not in Git
+            userKey: admin-user
+            passwordKey: admin-password
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {memory: 256Mi}
+          persistence:
+            enabled: true
+            storageClassName: ceph-rbd
+            size: 2Gi
+          ingress:
+            enabled: true
+            ingressClassName: nginx
+            hosts: [grafana.guildserver.io]
+          additionalDataSources:
+            - name: Loki
+              type: loki
+              access: proxy
+              url: http://loki.monitoring.svc.cluster.local:3100
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true      # kube-prometheus-stack CRDs are too big for client-side apply
+    retry:
+      limit: 5
+      backoff: {duration: 20s, maxDuration: 3m, factor: 2}

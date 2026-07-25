@@ -1,0 +1,41 @@
+# Centralized logs: Loki (store) + Promtail (per-node log shipper), via Argo CD.
+# Grafana (from kube-prometheus-stack) already has Loki wired as a datasource.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: loki-stack
+    targetRevision: 2.10.3
+    helm:
+      valuesObject:
+        grafana:
+          enabled: false          # use the kube-prometheus-stack Grafana
+        prometheus:
+          enabled: false          # use kube-prometheus-stack Prometheus
+        loki:
+          persistence:
+            enabled: true
+            storageClassName: ceph-rbd
+            size: 8Gi
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {memory: 512Mi}
+        promtail:
+          enabled: true
+          resources:
+            requests: {cpu: 20m, memory: 64Mi}
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff: {duration: 15s, maxDuration: 3m, factor: 2}
