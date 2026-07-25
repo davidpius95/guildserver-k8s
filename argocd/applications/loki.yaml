@@ -21,6 +21,7 @@ spec:
         prometheus:
           enabled: false          # use kube-prometheus-stack Prometheus
         loki:
+          isDefault: false        # Prometheus is Grafana's default datasource, not Loki
           persistence:
             enabled: true
             storageClassName: ceph-rbd

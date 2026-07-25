@@ -60,11 +60,8 @@ spec:
             enabled: true
             ingressClassName: nginx
             hosts: [grafana.guildserver.io]
-          additionalDataSources:
-            - name: Loki
-              type: loki
-              access: proxy
-              url: http://loki.monitoring.svc.cluster.local:3100
+          # Loki datasource is provided by the loki-stack chart's own datasource
+          # ConfigMap (with isDefault:false), so we don't add it here to avoid a duplicate.
   syncPolicy:
     automated: {prune: true, selfHeal: true}
     syncOptions:
