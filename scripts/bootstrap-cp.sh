@@ -17,7 +17,13 @@ ctr run --rm --net-host ghcr.io/kube-vip/kube-vip:${KVVERSION} vip \
     --controlplane \
     --arp \
   > /etc/kubernetes/manifests/kube-vip.yaml
-echo "  wrote /etc/kubernetes/manifests/kube-vip.yaml ($(wc -l </etc/kubernetes/manifests/kube-vip.yaml) lines)"
+# Single control-plane node: disable leader election so kube-vip holds the VIP
+# unconditionally. With LE enabled (kube-vip's default in control-plane mode), a
+# timed-out lease renewal makes kube-vip DELETE the VIP and crashloop, which flaps
+# the API endpoint and destabilises every off-node client (worker kubelets, CNI).
+# Re-enable leader election when growing to a 3-node HA control plane.
+sed -i '/^    env:/a\    - name: vip_leaderelection\n      value: "false"' /etc/kubernetes/manifests/kube-vip.yaml
+echo "  wrote /etc/kubernetes/manifests/kube-vip.yaml ($(wc -l </etc/kubernetes/manifests/kube-vip.yaml) lines, leaderElection disabled)"
 
 echo "### [2/4] kubeadm init (endpoint ${VIP}:6443, pod-cidr ${POD_CIDR})"
 kubeadm init \

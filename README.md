@@ -11,6 +11,10 @@ Ceph-backed persistent storage, ingress at the edge, GitOps, observability, and 
 This repo is both the **source of truth** for the platform and a **learning log** of how
 it was built.
 
+> 📐 **[Full architecture & design doc → `docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** —
+> every layer, component, and dependency explained, the enterprise problem each one solves,
+> and diagrams of the stack, networking, storage, edge, and GitOps flows.
+
 ## Cluster at a glance
 
 | | |
@@ -59,7 +63,7 @@ Everything is scripted and re-runnable. Order:
 - [x] **Phase 1** — Provision VMs (1 control-plane + 2 workers)
 - [x] **Phase 2** — Host prep: containerd + kube tooling
 - [x] **Phase 3** — Control plane (kube-vip VIP + kubeadm init + Cilium CNI)
-- [ ] **Phase 4** — Join worker nodes
+- [x] **Phase 4** — Join worker nodes (2 workers, verified end-to-end)
 - [ ] **Phase 5** — Ceph-CSI dynamic persistent storage (on existing Guild-A Ceph)
 - [ ] **Phase 6** — MetalLB + ingress-nginx wired to the Cloudflare edge
 - [ ] **Phase 7** — GitOps with ArgoCD (this repo becomes the deploy pipeline)
