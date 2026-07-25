@@ -185,6 +185,37 @@ Host header — is a very real enterprise pattern (you rarely get a greenfield e
 
 ---
 
+## 6c. Phase 7 — GitOps with ArgoCD (the delivery model flips)
+
+**Goal:** stop deploying by hand — make **Git the source of truth** and `git push` the deploy.
+
+**The thinking — one more controller, but a pivotal one:** ArgoCD is a controller that
+watches a Git repo and reconciles the cluster to match it. We used the **app-of-apps**
+pattern: a single `root` Application (applied once by hand) watches `argocd/applications/`;
+each file there is an `Application` that deploys a real workload (e.g. `apps/demo/`). Adding
+an app later is a new file + `git push` — no cluster access needed.
+
+**Why insecure-mode + reuse the edge:** ArgoCD's server normally serves its own TLS; behind
+an edge that already terminates TLS (Cloudflare/ingress), that causes redirect loops. Running
+it `--insecure` and letting ingress-nginx speak plain HTTP to it is the clean, standard
+composition — the same "terminate TLS once, at the edge" principle from Phase 6.
+
+**The proof (this is the whole point):** we bumped the demo's replicas 2→3 **in Git**,
+pushed, and — with no `kubectl` — ArgoCD detected the commit on its next poll and scaled the
+Deployment to 3/3. Editing a live resource by hand would be reverted (self-heal). The
+cluster now *chases Git*.
+
+**Enterprise parallel:** this is how modern teams ship — Argo/Flux at companies from startups
+to banks. Benefits that matter in production: every change is a **reviewed, audited commit**
+(compliance), rollbacks are `git revert`, and **drift is impossible** (self-heal). Cluster
+credentials leave developers' hands entirely — they change Git, not the cluster.
+
+**One thing to know:** default git-poll is ~3 minutes, so auto-sync isn't instant (we saw
+~174s). In the UI or CLI you can **Sync** immediately, and a webhook makes it near-instant —
+worth configuring for fast feedback.
+
+---
+
 ## 7. Bug Journal — the real curriculum
 
 Every one of these cost real time and taught something durable. Study them as a set — notice

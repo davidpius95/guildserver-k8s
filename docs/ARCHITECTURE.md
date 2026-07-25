@@ -345,7 +345,7 @@ balanced across both workers. Config in [`infra/metallb/`](../infra/metallb/),
 
 ---
 
-## 9. GitOps & CI/CD  🟢 LIVE (repo/CI) · ⚪ ROADMAP (ArgoCD, Phase 7)
+## 9. GitOps & CI/CD  🟢 LIVE (Phase 7)
 
 ```mermaid
 flowchart LR
@@ -361,8 +361,11 @@ flowchart LR
 - **GitHub Actions (LIVE):** every push runs YAML lint, shellcheck, and `kubeconform`
   manifest validation — bad config is caught before it reaches the cluster.
 - **Gitpod (LIVE):** a one-click browser IDE preloaded with `kubectl`/`helm`/`cilium`/`k9s`.
-- **ArgoCD (ROADMAP):** will watch `apps/` and continuously reconcile Git → cluster, so
-  **`git push` becomes the deploy mechanism** and the cluster self-heals to match Git.
+- **ArgoCD (LIVE):** watches this repo via an **app-of-apps** root (`argocd/applications/`)
+  and continuously reconciles Git → cluster, so **`git push` is the deploy mechanism** and
+  the cluster self-heals to match Git. UI at `https://argocd.guildserver.io`. Verified: a
+  replica bump committed to Git was reconciled into the cluster automatically. Config in
+  [`infra/argocd/`](../infra/argocd/) and [`argocd/`](../argocd/).
 - **Enterprise problem solved:** *Auditable, repeatable, reviewable change management* — no
   snowflake clusters, every change is a reviewed commit with a CI gate.
 
@@ -424,7 +427,7 @@ flowchart LR
 | Ceph-CSI | 3.17.0 | Storage | Dynamic PVs on `k8s-rbd` pool | 🟢 |
 | MetalLB | (L2) | Edge | Bare-metal LoadBalancer (pool .63-.69) | 🟢 |
 | ingress-nginx | — | Edge | HTTP ingress (LB .63, default class) | 🟢 |
-| ArgoCD | — | GitOps | Git→cluster reconcile | ⚪ |
+| ArgoCD | (Helm) | GitOps | Git→cluster reconcile (app-of-apps) | 🟢 |
 | Prometheus/Grafana/Loki | — | Observability | Metrics/logs/alerts | ⚪ |
 | Kyverno | — | Security | Admission policy | ⚪ |
 | Velero | — | Day-2 | Backup/restore | ⚪ |
