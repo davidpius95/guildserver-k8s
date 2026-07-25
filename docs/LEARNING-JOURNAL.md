@@ -278,6 +278,36 @@ without reviewing every deploy by hand; NetworkPolicy + RBAC are how you contain
 
 ---
 
+## 6f. Phase 10 — Day-2 operations (keeping it alive)
+
+Two capabilities that separate a demo from a platform you'd trust with real work.
+
+**Stateful app, end-to-end.** We deployed an app whose page is written *once* to a Ceph
+volume, then killed the pod: it rescheduled to another node, remounted the same RBD volume,
+and served the *identical* content. That single test exercises the whole stack at once —
+GitOps deployed it, Ceph-CSI gave it durable storage, ingress + Caddy + Cloudflare made it
+public, Prometheus/Promtail watch it, and Kyverno passed it (limits + owner label + pinned
+tags). It's the "everything works together" proof.
+
+**Backups with Velero.** Backups need somewhere to go, so we stood up **MinIO** (an
+S3-compatible store) and pointed Velero at it, using **File System Backup** (node-agent/kopia)
+so the actual *volume data* is captured — not just the Kubernetes objects. We backed up the
+`stateful` namespace and restored it into a *new* namespace: the workload came back **and so
+did its Ceph data** (the original write-once timestamp was intact). Backups physically live in
+MinIO (`backups/`, `kopia/`).
+
+*Honest caveats worth internalizing:* (1) an on-cluster backup target is fine to learn with,
+but **real DR ships backups off-site** — if the cluster/Ceph dies, so do co-located backups.
+(2) The restore was `PartiallyFailed` for exactly one resource — see Bug 10 — a good reminder
+that "PartiallyFailed" needs reading, not panic.
+
+**Enterprise/datacenter parallel:** this is business-continuity engineering — the backup/restore
+drills, RPO/RTO targets, and DR runbooks every serious operations team maintains. The optional
+next steps (3-node HA control plane, rolling `kubeadm` upgrades) are the remaining
+availability moves; the VIP we built in Phase 3 makes the HA step almost free.
+
+---
+
 ## 7. Bug Journal — the real curriculum
 
 Every one of these cost real time and taught something durable. Study them as a set — notice
@@ -376,6 +406,20 @@ found it.
   singleton-ish resource (here, "the default datasource"). Read component logs verbatim — the
   exact error named the fix — and don't anchor on your first hypothesis (the "slow Ceph"
   guess was wrong; the log was right).
+
+### Bug 10 — Velero restore "PartiallyFailed" (read it, don't panic)
+- **Symptom:** the restore into a new namespace reported `PartiallyFailed` (1 error) even
+  though the app and its data came back fine.
+- **Diagnosis:** the one missing resource was the **Ingress** — absent in the restored
+  namespace. Restoring an Ingress with the *same public host* (`stateful.guildserver.io`) into
+  a parallel namespace is rejected by the ingress-nginx admission webhook (a host can't be
+  owned by two Ingresses cleanly).
+- **Fix / takeaway:** expected behavior, not a real failure — in a genuine restore you'd remap
+  the host (or restore into the original namespace). The **volume data and workload restored
+  correctly**, which is what DR is actually about.
+- **Lesson:** `PartiallyFailed` is a signal to *investigate*, not to assume disaster. Check
+  *which* resource failed and *why* — often it's a benign, explainable conflict. Judge a
+  restore by whether the data and workloads came back.
 
 **Meta-lesson across all bugs:** the symptom is rarely the cause. Localize by layer, read
 the actual logs/console, and look for one root cause behind many symptoms.

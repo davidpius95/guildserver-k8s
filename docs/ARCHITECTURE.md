@@ -408,13 +408,22 @@ flowchart LR
 
 ---
 
-## 12. Day-2 Operations  ⚪ ROADMAP (Phase 10)
+## 12. Day-2 Operations  🟢 Velero LIVE · ⚪ HA growth / upgrades optional (Phase 10)
 
-- **Velero:** scheduled backup/restore of cluster objects and volumes.
-- **HA growth:** add 2 more control-plane nodes (re-enabling kube-vip leader election) for a
-  quorum etcd and a fault-tolerant control plane — trivial because the VIP endpoint never
-  changes.
-- **Upgrades:** practice a controlled `kubeadm upgrade` (drain → upgrade → uncordon).
+- **Velero (live):** backup/restore to an in-cluster **MinIO** S3 store, using File System
+  Backup (node-agent/kopia) so **volume data** is captured, not just objects. Verified: a
+  backup of the `stateful` namespace **Completed**, and a restore into a new namespace brought
+  back the workload *and its Ceph volume data* (original file intact). Backups live in MinIO
+  (`backups/`, `kopia/`). Config in [`infra/velero/`](../infra/velero/) and
+  [`infra/minio/`](../infra/minio/). *(On-cluster target is fine for a demo; real DR ships
+  backups off-site.)*
+- **Stateful app (live):** a full end-to-end demo — GitOps → Ceph PV → ingress →
+  `https://stateful.guildserver.io` → monitored → Kyverno-clean — that keeps its data across
+  pod restarts (verified: killed the pod, the page's write-once timestamp survived).
+- **HA growth (optional next):** add 2 more control-plane nodes (re-enabling kube-vip leader
+  election) for a quorum etcd — trivial because the VIP endpoint never changes.
+- **Upgrades (optional next):** practice a controlled `kubeadm upgrade` (drain → upgrade →
+  uncordon).
 - **Enterprise problem solved:** *Business continuity* — backups, no-single-point-of-failure,
   and safe rolling upgrades.
 
@@ -448,7 +457,8 @@ flowchart LR
 | Kyverno | 3.8.2 | Security | Admission policy (audit) | 🟢 |
 | NetworkPolicy (Cilium) | — | Security | Zero-trust east-west | 🟢 |
 | RBAC | — | Security | Least-privilege access | 🟢 |
-| Velero | — | Day-2 | Backup/restore | ⚪ |
+| Velero | 12.1.0 | Day-2 | Backup/restore (FSB) | 🟢 |
+| MinIO | — | Day-2 | S3 backend for Velero | 🟢 |
 
 ---
 
@@ -496,8 +506,10 @@ with an HA API VIP, Cilium eBPF networking, CoreDNS, Hubble, **Ceph-CSI dynamic 
 Grafana + Loki observability**. End-to-end verified: multi-node pod scheduling, Service DNS,
 cross-node pod networking, a PVC provisioning a real RBD volume from Ceph, a public app at
 `https://k8s.guildserver.io`, `git push`-driven deploys, live metrics/logs dashboards at
-`https://grafana.guildserver.io`, and enforced **security guardrails** (Kyverno audit,
-zero-trust NetworkPolicies, least-privilege RBAC).
+`https://grafana.guildserver.io`, enforced **security guardrails** (Kyverno audit, zero-trust
+NetworkPolicies, least-privilege RBAC), a **stateful app** persisting on Ceph at
+`https://stateful.guildserver.io`, and **Velero backup/restore** (verified with volume data).
 
-**⚪ Next:** Day-2 — Velero backups, grow the control plane to 3-node HA, and practice a
-kubeadm upgrade (Phase 10).
+**All 10 roadmap phases are live.** Optional future work: grow the control plane to 3-node HA
+(the VIP is already in place for it), practice a `kubeadm` upgrade, add sealed-secrets for
+GitOps-native secrets, and flip Kyverno policies from Audit to Enforce.
