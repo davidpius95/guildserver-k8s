@@ -459,6 +459,7 @@ flowchart LR
 | RBAC | — | Security | Least-privilege access | 🟢 |
 | Velero | 12.1.0 | Day-2 | Backup/restore (FSB) | 🟢 |
 | MinIO | — | Day-2 | S3 backend for Velero | 🟢 |
+| Headlamp | 0.43.0 | Management | Web UI for the cluster | 🟢 |
 
 ---
 
