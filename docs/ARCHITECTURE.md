@@ -388,15 +388,23 @@ flowchart LR
 
 ---
 
-## 11. Security & Policy  ⚪ ROADMAP (Phase 9)
+## 11. Security & Policy  🟢 LIVE (Phase 9)
 
-- **RBAC:** least-privilege roles for humans and service accounts.
-- **NetworkPolicies (via Cilium):** default-deny east-west traffic — zero-trust networking.
-- **Kyverno:** admission policies ("no privileged pods", "images must come from an approved
-  registry", "every pod needs resource limits") enforced at deploy time.
-- **Secrets management:** sealed-secrets or Vault so secrets can live safely in Git.
+- **RBAC (live):** a `developer` ServiceAccount with a namespaced read-only Role — verified:
+  it can read pods in `demo` but cannot delete them, cannot touch `kube-system`, and cannot
+  read secrets. The least-privilege template for real human/CI identities.
+- **NetworkPolicies via Cilium (live):** the `demo` namespace is **default-deny ingress**
+  plus an explicit allow from ingress-nginx. Verified: the public app still serves (200)
+  while a pod in another namespace is **blocked** from reaching demo — zero-trust proven.
+- **Kyverno (live, audit mode):** 4 ClusterPolicies — require requests/limits, disallow
+  `:latest`, disallow privileged, require an `owner` label — auditing all workloads (238
+  violations flagged). Flip to Enforce once the cluster is clean.
+- **Secrets:** all sensitive values (cephx key, Grafana/ArgoCD admin) are kept **out of Git**
+  in the credentials vault and referenced via `existingSecret`. Next step for GitOps secrets:
+  **sealed-secrets** (encrypted secrets safe to commit).
 - **Enterprise problem solved:** *Compliance and blast-radius control* — the controls
   auditors and security teams require (maps to CIS Kubernetes Benchmark expectations).
+- Config in [`apps/security/`](../apps/security/).
 
 ---
 
@@ -437,7 +445,9 @@ flowchart LR
 | ArgoCD | (Helm) | GitOps | Git→cluster reconcile (app-of-apps) | 🟢 |
 | kube-prometheus-stack | 87.19.1 | Observability | Metrics + Grafana dashboards | 🟢 |
 | Loki + Promtail | 2.10.3 | Observability | Centralized logs | 🟢 |
-| Kyverno | — | Security | Admission policy | ⚪ |
+| Kyverno | 3.8.2 | Security | Admission policy (audit) | 🟢 |
+| NetworkPolicy (Cilium) | — | Security | Zero-trust east-west | 🟢 |
+| RBAC | — | Security | Least-privilege access | 🟢 |
 | Velero | — | Day-2 | Backup/restore | ⚪ |
 
 ---
@@ -485,7 +495,9 @@ with an HA API VIP, Cilium eBPF networking, CoreDNS, Hubble, **Ceph-CSI dynamic 
 **MetalLB + ingress-nginx behind the Cloudflare edge**, **ArgoCD GitOps**, and **Prometheus +
 Grafana + Loki observability**. End-to-end verified: multi-node pod scheduling, Service DNS,
 cross-node pod networking, a PVC provisioning a real RBD volume from Ceph, a public app at
-`https://k8s.guildserver.io`, `git push`-driven deploys, and live metrics/logs dashboards at
-`https://grafana.guildserver.io`.
+`https://k8s.guildserver.io`, `git push`-driven deploys, live metrics/logs dashboards at
+`https://grafana.guildserver.io`, and enforced **security guardrails** (Kyverno audit,
+zero-trust NetworkPolicies, least-privilege RBAC).
 
-**⚪ Next:** security & policy (Phase 9) → backups & HA growth (Phase 10).
+**⚪ Next:** Day-2 — Velero backups, grow the control plane to 3-node HA, and practice a
+kubeadm upgrade (Phase 10).

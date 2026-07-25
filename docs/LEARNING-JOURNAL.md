@@ -247,6 +247,37 @@ network-flow observability; this adds metrics and logs for the full picture.
 
 ---
 
+## 6e. Phase 9 — Security & policy (the guardrails)
+
+**Goal:** move from "it works" to "it's safe" — enforce rules, contain blast radius, limit
+access.
+
+**Three complementary controls, and why each exists:**
+- **Kyverno (admission policy):** a webhook that inspects every object *as it's created* and
+  can warn or reject. Our pack: require resource limits, ban `:latest`, ban privileged
+  containers, require an `owner` label. We ran it in **Audit** mode first — it flagged 238
+  existing violations without breaking anything. *Rolling out policy in audit before enforce
+  is the professional way; enforce-first breaks production.*
+- **NetworkPolicy (Cilium):** by default, any pod can talk to any pod — flat and dangerous.
+  We made the `demo` namespace **default-deny ingress**, then allowed *only* ingress-nginx.
+  Verified both directions: the public app still serves, but a pod in another namespace is
+  blocked. That's **zero-trust east-west** — the control that stops a compromised pod from
+  roaming.
+- **RBAC (access):** a `developer` identity that can *read* one namespace and nothing else.
+  Verified with `kubectl auth can-i`: read demo yes; delete no; kube-system no; secrets no.
+  Least privilege means a leaked credential is a small problem, not a total one.
+
+**Secrets:** throughout the build, sensitive values (cephx key, Grafana/ArgoCD admins) were
+kept **out of Git** in the vault and referenced via `existingSecret`. The GitOps-native next
+step is **sealed-secrets** — encrypt secrets so they *can* live in the repo safely.
+
+**Enterprise/datacenter parallel:** this is the layer auditors and security teams care about
+— it maps directly to the **CIS Kubernetes Benchmark** and to SOC2/ISO controls. In a real
+org, Kyverno/OPA policies are how platform teams enforce standards across hundreds of teams
+without reviewing every deploy by hand; NetworkPolicy + RBAC are how you contain incidents.
+
+---
+
 ## 7. Bug Journal — the real curriculum
 
 Every one of these cost real time and taught something durable. Study them as a set — notice
