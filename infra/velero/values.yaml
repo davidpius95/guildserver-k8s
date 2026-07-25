@@ -1,0 +1,37 @@
+# Velero — backup/restore, targeting the in-cluster MinIO S3 store.
+# Uses File System Backup (node-agent/kopia) so PVC *data* (not just k8s objects)
+# is backed up — works with any storage, no CSI snapshot CRDs needed.
+initContainers:
+  - name: velero-plugin-for-aws
+    image: velero/velero-plugin-for-aws:v1.12.1
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+      - name: plugins
+        mountPath: /target
+
+credentials:
+  useSecret: true
+  existingSecret: velero-credentials   # created out-of-band; AWS-style creds for MinIO
+
+configuration:
+  backupStorageLocation:
+    - name: default
+      provider: aws
+      bucket: velero
+      default: true
+      config:
+        region: minio
+        s3ForcePathStyle: "true"
+        s3Url: http://minio.minio.svc:9000
+  defaultVolumesToFsBackup: true       # back up volume file data by default
+
+snapshotsEnabled: false                # no cloud/CSI volume snapshots; FSB instead
+deployNodeAgent: true                  # the per-node agent that does FSB
+
+resources:
+  requests: {cpu: 100m, memory: 128Mi}
+  limits: {memory: 256Mi}
+nodeAgent:
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 256Mi}
