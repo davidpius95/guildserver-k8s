@@ -1,0 +1,21 @@
+# Deploys the cluster's security posture from Git: Kyverno policies,
+# NetworkPolicies, and RBAC. (Kyverno policy CRs reconcile once Kyverno is installed.)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: security
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  source:
+    repoURL: https://github.com/davidpius95/guildserver-k8s
+    targetRevision: main
+    path: apps/security
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    retry:
+      limit: 10
+      backoff: {duration: 15s, maxDuration: 3m, factor: 2}

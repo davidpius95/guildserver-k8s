@@ -1,0 +1,31 @@
+# Zero-trust ingress for the demo namespace (enforced by Cilium).
+# 1) deny ALL ingress to demo pods, then 2) allow ONLY ingress-nginx -> hello:80.
+# Net effect: the public app keeps working; nothing else can reach demo pods.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: demo
+spec:
+  podSelector: {}            # selects every pod in demo
+  policyTypes: [Ingress]
+  # no ingress rules = deny all inbound
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-ingress-nginx
+  namespace: demo
+spec:
+  podSelector:
+    matchLabels:
+      app: hello
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 80
