@@ -1,0 +1,29 @@
+# Example: a 1Gi Ceph-backed volume and a pod that mounts it.
+# The default StorageClass (ceph-rbd) provisions an RBD image in the k8s-rbd pool.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ceph-test-pvc
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: ceph-rbd           # omit to use the default class
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ceph-test-pod
+spec:
+  containers:
+    - name: app
+      image: busybox:1.36
+      command: ["sh", "-c", "echo hello-from-ceph > /data/proof.txt; sleep 3600"]
+      volumeMounts:
+        - name: vol
+          mountPath: /data
+  volumes:
+    - name: vol
+      persistentVolumeClaim:
+        claimName: ceph-test-pvc

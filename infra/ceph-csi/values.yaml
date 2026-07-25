@@ -1,0 +1,19 @@
+# Helm values for ceph-csi-rbd (Ceph RBD dynamic storage for Kubernetes).
+# Applied with:
+#   helm upgrade --install ceph-csi-rbd ceph-csi/ceph-csi-rbd \
+#     -n ceph-csi --create-namespace -f infra/ceph-csi/values.yaml
+#
+# Connects the cluster to the existing Guild-A Ceph mons. clusterID is the Ceph FSID.
+# (FSID + mon IPs are non-secret; the cephx key lives only in the csi-rbd-secret,
+# created out-of-band — see secret.example.yaml.)
+
+csiConfig:
+  - clusterID: "1a5dc75a-1f86-4467-ac56-1a4fc6ce6510"
+    monitors:
+      - "192.168.8.125:6789"   # mon.pve   (nodeE)
+      - "192.168.8.155:6789"   # mon.nodeB
+      - "192.168.8.112:6789"   # mon.nodeA
+
+# Small cluster: 2 provisioner replicas (leader-elected) fit the 2 workers.
+provisioner:
+  replicaCount: 2

@@ -1,0 +1,23 @@
+# Default StorageClass — every PVC without an explicit class provisions an RBD
+# image from the dedicated 'k8s-rbd' Ceph pool (size=3, min_size=2).
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ceph-rbd
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: rbd.csi.ceph.com
+parameters:
+  clusterID: "1a5dc75a-1f86-4467-ac56-1a4fc6ce6510"
+  pool: k8s-rbd
+  imageFeatures: layering            # most-compatible krbd feature set
+  csi.storage.k8s.io/fstype: ext4
+  csi.storage.k8s.io/provisioner-secret-name: csi-rbd-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: ceph-csi
+  csi.storage.k8s.io/controller-expand-secret-name: csi-rbd-secret
+  csi.storage.k8s.io/controller-expand-secret-namespace: ceph-csi
+  csi.storage.k8s.io/node-stage-secret-name: csi-rbd-secret
+  csi.storage.k8s.io/node-stage-secret-namespace: ceph-csi
+reclaimPolicy: Delete                 # deleting the PVC deletes the RBD image
+allowVolumeExpansion: true            # PVCs can be grown in place
+volumeBindingMode: Immediate
