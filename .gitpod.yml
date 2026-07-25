@@ -1,0 +1,27 @@
+# Gitpod workspace: a ready-to-use kubectl/helm/cilium/k9s toolbox in the browser.
+# Connect to the cluster by exporting a KUBECONFIG you paste in at runtime — never commit it.
+image: gitpod/workspace-full
+
+tasks:
+  - name: k8s-toolbox
+    init: |
+      # kubectl (pinned to cluster's stable channel)
+      curl -fsSLO "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+      sudo install kubectl /usr/local/bin/ && rm -f kubectl
+      # helm
+      curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      # cilium CLI
+      CILIUM_CLI_VERSION=$(curl -fsSL https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt)
+      curl -fsSL --remote-name-all "https://github.com/cilium/cilium-cli/releases/download/${CILIUM_CLI_VERSION}/cilium-linux-amd64.tar.gz"
+      sudo tar xzf cilium-linux-amd64.tar.gz -C /usr/local/bin && rm -f cilium-linux-amd64.tar.gz
+      # k9s TUI
+      curl -sS https://webinstall.dev/k9s | bash
+    command: |
+      echo "✅ Toolbox ready: kubectl $(kubectl version --client -o json 2>/dev/null | grep -o '\"gitVersion\":\"[^\"]*' | head -1 | cut -d'\"' -f4), helm, cilium, k9s"
+      echo "➡  export KUBECONFIG=/path/to/your/kubeconfig  (paste it in; it is .gitignored)"
+
+vscode:
+  extensions:
+    - ms-kubernetes-tools.vscode-kubernetes-tools
+    - redhat.vscode-yaml
+    - timonwong.shellcheck

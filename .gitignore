@@ -1,0 +1,35 @@
+# ── SECRETS: never commit anything that grants cluster or infra access ──
+# kubeconfigs / kubeadm output
+*.conf
+kubeconfig*
+*.kubeconfig
+admin.conf
+super-admin.conf
+worker-join.sh
+*join-command*
+join-*.sh
+kubeadm-init.log
+
+# keys, certs, tokens
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+*token*
+*.secret
+secrets/
+*-secret.yaml
+sealed-secrets.key
+
+# cloud / env
+.env
+.env.*
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# editor / OS
+.DS_Store
+.idea/
+*.swp

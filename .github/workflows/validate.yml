@@ -1,0 +1,46 @@
+name: validate
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  yamllint:
+    name: yamllint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install yamllint
+        run: pipx install yamllint
+      - name: Lint YAML
+        run: yamllint .
+
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: Check scripts
+        run: shellcheck -S warning scripts/*.sh
+
+  kubeconform:
+    name: kubeconform (manifests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install kubeconform
+        run: |
+          curl -fsSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
+            | sudo tar xz -C /usr/local/bin kubeconform
+      - name: Validate Kubernetes manifests
+        # Validates any raw manifests under apps/ and infra/. Passes cleanly when
+        # there are none yet (GitOps manifests land here as phases progress).
+        run: |
+          shopt -s globstar nullglob
+          files=(apps/**/*.yaml infra/**/*.yaml)
+          if [ ${#files[@]} -eq 0 ]; then echo "no manifests to validate yet"; exit 0; fi
+          kubeconform -strict -ignore-missing-schemas -summary "${files[@]}"

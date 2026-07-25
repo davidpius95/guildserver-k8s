@@ -1,0 +1,31 @@
+# Cilium CNI Helm values for the Guild-A cluster (declarative source of truth).
+# Applied with:
+#   helm upgrade --install cilium cilium/cilium -n kube-system -f infra/cilium/values.yaml
+#
+# Why Cilium: eBPF-based dataplane — high-performance networking, NetworkPolicy
+# enforcement (incl. L7), and Hubble network observability. The modern enterprise CNI.
+
+ipam:
+  mode: cluster-pool
+  operator:
+    clusterPoolIPv4PodCIDRList:
+      - 10.244.0.0/16   # must match kubeadm --pod-network-cidr
+    clusterPoolIPv4MaskSize: 24
+
+# Reach the API through the kube-vip control-plane VIP so agents survive a CP node loss.
+k8sServiceHost: 192.168.8.59
+k8sServicePort: 6443
+
+# kube-proxy retained for now (reliable first bring-up). Roadmap: switch to
+# Cilium kube-proxy replacement (set true, remove kube-proxy addon).
+kubeProxyReplacement: false
+
+operator:
+  replicas: 1   # single control-plane today; raise to 2 when CP grows to HA
+
+# Hubble = network flow observability (see pod-to-pod traffic, L7, service maps).
+hubble:
+  relay:
+    enabled: true
+  ui:
+    enabled: true
