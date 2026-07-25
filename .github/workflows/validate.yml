@@ -37,10 +37,14 @@ jobs:
           curl -fsSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
             | sudo tar xz -C /usr/local/bin kubeconform
       - name: Validate Kubernetes manifests
-        # Validates any raw manifests under apps/ and infra/. Passes cleanly when
-        # there are none yet (GitOps manifests land here as phases progress).
+        # Validates raw manifests under apps/ and infra/. Helm values.yaml files are
+        # inputs to charts (no kind/apiVersion), not manifests, so they're skipped.
+        # CRD-based kinds (ClusterPolicy, Application, Backup) are skipped via
+        # -ignore-missing-schemas since their schemas aren't in the default registry.
         run: |
           shopt -s globstar nullglob
           files=(apps/**/*.yaml infra/**/*.yaml)
           if [ ${#files[@]} -eq 0 ]; then echo "no manifests to validate yet"; exit 0; fi
-          kubeconform -strict -ignore-missing-schemas -summary "${files[@]}"
+          kubeconform -strict -ignore-missing-schemas \
+            -ignore-filename-pattern 'values\.yaml$' \
+            -summary "${files[@]}"
