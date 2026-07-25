@@ -1,0 +1,19 @@
+# Stateful demo app, managed by GitOps.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: stateful
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: stateful
+  source:
+    repoURL: https://github.com/davidpius95/guildserver-k8s
+    targetRevision: main
+    path: apps/stateful
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,83 @@
+# Stateful demo that ties every layer together:
+#   GitOps (ArgoCD) -> Ceph PV (Ceph-CSI) -> Ingress (nginx+Caddy+Cloudflare)
+#   -> monitored (Prometheus/Promtail) -> policy-clean (Kyverno: limits, owner, no :latest).
+# The page is written ONCE to the Ceph volume; killing the pod keeps the same content,
+# proving durable storage.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: web-data
+  namespace: stateful
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: ceph-rbd
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: persistent-web
+  namespace: stateful
+  labels: {app: persistent-web, owner: guild-platform}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}          # RWO volume: never two pods writing at once
+  selector:
+    matchLabels: {app: persistent-web}
+  template:
+    metadata:
+      labels: {app: persistent-web, owner: guild-platform}
+    spec:
+      initContainers:
+        - name: seed
+          image: busybox:1.36
+          command: ["sh", "-c", "test -f /data/index.html || printf '<h1>Persisted on Ceph RBD</h1><p>This page was written ONCE at %s UTC.</p><p>Kill the pod, it reschedules, and this timestamp stays the same — the data lives on Ceph, not in the container.</p>' \"$(date -u)\" > /data/index.html"]
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {memory: 32Mi}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+      containers:
+        - name: web
+          image: nginx:1.27-alpine
+          ports: [{containerPort: 80}]
+          resources:
+            requests: {cpu: 20m, memory: 32Mi}
+            limits: {memory: 64Mi}
+          volumeMounts:
+            - {name: data, mountPath: /usr/share/nginx/html}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: web-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: persistent-web
+  namespace: stateful
+spec:
+  selector: {app: persistent-web}
+  ports:
+    - {port: 80, targetPort: 80}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: persistent-web
+  namespace: stateful
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: stateful.guildserver.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: persistent-web
+                port:
+                  number: 80
