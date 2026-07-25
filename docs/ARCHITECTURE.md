@@ -308,7 +308,7 @@ flowchart LR
 
 ---
 
-## 8. Layer 7 — Edge & Ingress  ⚪ ROADMAP (Phase 6)
+## 8. Layer 7 — Edge & Ingress  🟢 LIVE (Phase 6)
 
 ```mermaid
 flowchart LR
@@ -336,6 +336,12 @@ flowchart LR
   into it, so cluster apps get public HTTPS URLs without opening firewall ports.
 - **Enterprise problem solved:** *Secure public exposure with TLS and DDoS protection at the
   edge.*
+
+**Live status:** MetalLB (L2, pool `.63-.69`) + ingress-nginx (pinned to `192.168.8.63`,
+default IngressClass) are installed; a Caddy route sends `k8s.guildserver.io` to the ingress
+LB IP. Verified: **`https://k8s.guildserver.io` returns 200 through Cloudflare**, load-
+balanced across both workers. Config in [`infra/metallb/`](../infra/metallb/),
+[`infra/ingress-nginx/`](../infra/ingress-nginx/), demo in [`apps/demo/`](../apps/demo/).
 
 ---
 
@@ -416,8 +422,8 @@ flowchart LR
 | GitHub Actions | — | CI/CD | Lint/validate manifests | 🟢 |
 | Gitpod | — | Dev env | Browser k8s toolbox | 🟢 |
 | Ceph-CSI | 3.17.0 | Storage | Dynamic PVs on `k8s-rbd` pool | 🟢 |
-| MetalLB | — | Edge | Bare-metal LoadBalancer | ⚪ |
-| ingress-nginx | — | Edge | HTTP ingress | ⚪ |
+| MetalLB | (L2) | Edge | Bare-metal LoadBalancer (pool .63-.69) | 🟢 |
+| ingress-nginx | — | Edge | HTTP ingress (LB .63, default class) | 🟢 |
 | ArgoCD | — | GitOps | Git→cluster reconcile | ⚪ |
 | Prometheus/Grafana/Loki | — | Observability | Metrics/logs/alerts | ⚪ |
 | Kyverno | — | Security | Admission policy | ⚪ |
@@ -465,8 +471,9 @@ image-pull contention). This removes the fsync-latency root cause.
 
 **🟢 Live and verified:** a 3-node Kubernetes v1.36.3 cluster (1 control-plane + 2 workers)
 with an HA API VIP, Cilium eBPF networking, CoreDNS, Hubble, **Ceph-CSI dynamic storage**,
-and a GitOps repo with CI. End-to-end verified: multi-node pod scheduling, Service DNS,
-cross-node pod networking, and a PVC provisioning a real RBD volume from Ceph.
+**MetalLB + ingress-nginx behind the Cloudflare edge**, and a GitOps repo with CI. End-to-end
+verified: multi-node pod scheduling, Service DNS, cross-node pod networking, a PVC
+provisioning a real RBD volume from Ceph, and a public app at `https://k8s.guildserver.io`.
 
-**⚪ Next:** MetalLB + ingress to the Cloudflare edge (Phase 6) → ArgoCD (Phase 7) →
-observability (Phase 8) → security/policy (Phase 9) → backups & HA growth (Phase 10).
+**⚪ Next:** ArgoCD GitOps (Phase 7) → observability (Phase 8) → security/policy (Phase 9)
+→ backups & HA growth (Phase 10).

@@ -155,6 +155,36 @@ identical everywhere; only the backend changes.
 
 ---
 
+## 6b. Phase 6 — the edge (public URLs for cluster apps)
+
+**Goal:** make an app reachable at `https://k8s.guildserver.io`.
+
+**The thinking — two missing pieces on bare metal:**
+- **MetalLB** provides what the cloud gives you for free: a `type=LoadBalancer` Service
+  needs a routable IP, and on bare metal nobody hands you one. MetalLB (L2 mode) claims IPs
+  from a pool (`.63-.69`) and answers ARP for them — the node holding the Service becomes its
+  advertiser.
+- **ingress-nginx** is the HTTP front door: one LoadBalancer IP (`.63`) that routes *many*
+  hostnames to the right Service by `Host` header and path.
+
+**Wiring to the existing edge (reuse, don't rebuild):** Guild-A already had a Cloudflare
+tunnel → Caddy edge for `*.guildserver.io`. Instead of a second public entry, we pointed a
+Caddy route at ingress-nginx's LB IP. Because Caddy **preserves the `Host` header**,
+ingress-nginx matches the Ingress rule — the two layers compose cleanly. One command
+(`route add k8s 192.168.8.63:80`), no Cloudflare change (the wildcard covers DNS).
+
+**Proof:** `https://k8s.guildserver.io` returned 200 through Cloudflare, and refreshing
+alternated between the two backend pods — the whole path (edge → LB → ingress → Service →
+Pod) load-balancing across nodes.
+
+**Enterprise/datacenter parallel:** this is exactly a cloud ALB/NLB + an ingress controller,
+or a datacenter hardware load balancer + reverse proxy tier. The `LoadBalancer → Ingress →
+Service → Pod` chain is identical in every environment; only the LB implementation changes.
+The lesson in *composition* — layering ingress behind an existing edge by preserving the
+Host header — is a very real enterprise pattern (you rarely get a greenfield edge).
+
+---
+
 ## 7. Bug Journal — the real curriculum
 
 Every one of these cost real time and taught something durable. Study them as a set — notice

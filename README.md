@@ -69,7 +69,7 @@ Everything is scripted and re-runnable. Order:
 - [x] **Phase 3** — Control plane (kube-vip VIP + kubeadm init + Cilium CNI)
 - [x] **Phase 4** — Join worker nodes (2 workers, verified end-to-end)
 - [x] **Phase 5** — Ceph-CSI dynamic persistent storage (verified: PVC → RBD image in Ceph → pod read/write)
-- [ ] **Phase 6** — MetalLB + ingress-nginx wired to the Cloudflare edge
+- [x] **Phase 6** — MetalLB + ingress-nginx wired to the Cloudflare edge (live: `https://k8s.guildserver.io`)
 - [ ] **Phase 7** — GitOps with ArgoCD (this repo becomes the deploy pipeline)
 - [ ] **Phase 8** — Observability: Prometheus + Grafana + Loki
 - [ ] **Phase 9** — Security & policy: RBAC, NetworkPolicies, Kyverno, secrets
