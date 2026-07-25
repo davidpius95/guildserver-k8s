@@ -216,6 +216,37 @@ worth configuring for fast feedback.
 
 ---
 
+## 6d. Phase 8 — Observability (see what the cluster is doing)
+
+**Goal:** metrics, dashboards, and logs — the "is it healthy, and why not?" layer.
+
+**The thinking:** three parts. **Prometheus** scrapes metrics from everything (nodes via
+node-exporter, k8s objects via kube-state-metrics, the control plane) and stores time-series;
+**Grafana** visualizes them and is the single pane of glass; **Loki + Promtail** do for logs
+what Prometheus does for metrics (Promtail tails every node's container logs → Loki). We
+deployed the whole stack **through ArgoCD** — so the monitoring system itself is Git-managed,
+the authentic enterprise pattern.
+
+**Two decisions worth understanding:**
+- **ServerSideApply** — kube-prometheus-stack ships enormous CRDs that exceed Kubernetes'
+  client-side "last-applied-configuration" annotation limit. ArgoCD's `ServerSideApply=true`
+  sync option applies them server-side and avoids the error. (A very common real-world ArgoCD
+  gotcha.)
+- **Lean sizing** — on a 2-worker cluster you must cap Prometheus/Grafana/Loki resources,
+  shorten retention, and (here) drop Alertmanager, or you'll evict real workloads. Capacity
+  planning is part of the job.
+
+**Everything landed on Ceph** — Prometheus (8 Gi), Loki (8 Gi), Grafana (2 Gi) all got
+dynamic RBD volumes, tying Phase 5 and Phase 8 together: durable metrics/logs that survive
+pod restarts.
+
+**Enterprise/datacenter parallel:** this is the observability tier every SRE team runs
+(often this exact stack). The discipline it enables — dashboards, SLOs, alerting — is how you
+move from "reacting to outages" to "catching them early." Hubble (Phase 3) already gave us
+network-flow observability; this adds metrics and logs for the full picture.
+
+---
+
 ## 7. Bug Journal — the real curriculum
 
 Every one of these cost real time and taught something durable. Study them as a set — notice
@@ -300,6 +331,20 @@ found it.
   network/shared storage.** This is written in every production Kubernetes guide, and here
   you *felt why*. When multiple symptoms (VIP flaps, CSI crashes, slow joins) share one
   trigger (I/O load), suspect a **common root cause** rather than fixing each symptom.
+
+### Bug 9 — Grafana crashloop: "only one datasource can be default"
+- **Symptom:** Grafana `CrashLoopBackOff`; at first it *looked* like slow DB migrations on
+  Ceph, but the node's iowait was low — a red herring.
+- **Diagnosis:** the crash log was explicit — *"Only one datasource per organization can be
+  marked as default"*. Listing the datasource ConfigMaps showed **two** marked default:
+  Prometheus (from kube-prometheus-stack) **and** Loki (from loki-stack, which defaults
+  `loki.isDefault: true`).
+- **Fix:** set `loki.isDefault: false` and remove the now-duplicate inline Loki datasource;
+  push via GitOps; recycle Grafana.
+- **Lesson:** when combining two Helm charts, they can each try to own a shared,
+  singleton-ish resource (here, "the default datasource"). Read component logs verbatim — the
+  exact error named the fix — and don't anchor on your first hypothesis (the "slow Ceph"
+  guess was wrong; the log was right).
 
 **Meta-lesson across all bugs:** the symptom is rarely the cause. Localize by layer, read
 the actual logs/console, and look for one root cause behind many symptoms.

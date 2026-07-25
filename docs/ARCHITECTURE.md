@@ -371,13 +371,20 @@ flowchart LR
 
 ---
 
-## 10. Observability  ⚪ ROADMAP (Phase 8)
+## 10. Observability  🟢 LIVE (Phase 8)
 
-- **kube-prometheus-stack** (Prometheus + Grafana + Alertmanager): metrics, dashboards,
-  alerting for nodes, control plane, and apps.
-- **Loki + promtail:** centralized log aggregation.
+- **kube-prometheus-stack** (Prometheus + Grafana + exporters): metrics, dashboards for
+  nodes, control plane, and apps. Deployed **via ArgoCD** (GitOps). Prometheus scrapes 19+
+  targets, 5-day retention on an 8 Gi Ceph volume. Alertmanager trimmed to save footprint on
+  the small cluster (re-enable when scaling).
+- **Loki + Promtail:** centralized log aggregation; Promtail ships every node's logs to Loki
+  (8 Gi Ceph volume). Wired into Grafana as a datasource.
+- **Grafana:** live at `https://grafana.guildserver.io` (admin creds in the vault, not Git);
+  Prometheus is the default datasource, Loki secondary.
 - **Enterprise problem solved:** *Know what the cluster is doing and get paged before users
   notice* — the monitoring/alerting/SLO backbone. (Hubble already covers network flows.)
+- Config in [`argocd/applications/kube-prometheus-stack.yaml`](../argocd/applications/kube-prometheus-stack.yaml)
+  and [`loki.yaml`](../argocd/applications/loki.yaml).
 
 ---
 
@@ -428,7 +435,8 @@ flowchart LR
 | MetalLB | (L2) | Edge | Bare-metal LoadBalancer (pool .63-.69) | 🟢 |
 | ingress-nginx | — | Edge | HTTP ingress (LB .63, default class) | 🟢 |
 | ArgoCD | (Helm) | GitOps | Git→cluster reconcile (app-of-apps) | 🟢 |
-| Prometheus/Grafana/Loki | — | Observability | Metrics/logs/alerts | ⚪ |
+| kube-prometheus-stack | 87.19.1 | Observability | Metrics + Grafana dashboards | 🟢 |
+| Loki + Promtail | 2.10.3 | Observability | Centralized logs | 🟢 |
 | Kyverno | — | Security | Admission policy | ⚪ |
 | Velero | — | Day-2 | Backup/restore | ⚪ |
 
@@ -474,9 +482,10 @@ image-pull contention). This removes the fsync-latency root cause.
 
 **🟢 Live and verified:** a 3-node Kubernetes v1.36.3 cluster (1 control-plane + 2 workers)
 with an HA API VIP, Cilium eBPF networking, CoreDNS, Hubble, **Ceph-CSI dynamic storage**,
-**MetalLB + ingress-nginx behind the Cloudflare edge**, and a GitOps repo with CI. End-to-end
-verified: multi-node pod scheduling, Service DNS, cross-node pod networking, a PVC
-provisioning a real RBD volume from Ceph, and a public app at `https://k8s.guildserver.io`.
+**MetalLB + ingress-nginx behind the Cloudflare edge**, **ArgoCD GitOps**, and **Prometheus +
+Grafana + Loki observability**. End-to-end verified: multi-node pod scheduling, Service DNS,
+cross-node pod networking, a PVC provisioning a real RBD volume from Ceph, a public app at
+`https://k8s.guildserver.io`, `git push`-driven deploys, and live metrics/logs dashboards at
+`https://grafana.guildserver.io`.
 
-**⚪ Next:** ArgoCD GitOps (Phase 7) → observability (Phase 8) → security/policy (Phase 9)
-→ backups & HA growth (Phase 10).
+**⚪ Next:** security & policy (Phase 9) → backups & HA growth (Phase 10).
