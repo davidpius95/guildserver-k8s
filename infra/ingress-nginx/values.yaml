@@ -1,0 +1,13 @@
+# Helm values for ingress-nginx — the cluster's HTTP(S) entry controller.
+# Its Service is type=LoadBalancer, pinned to the first MetalLB pool IP so the
+# Caddy edge route has a stable target.
+controller:
+  replicaCount: 2
+  ingressClassResource:
+    default: true          # nginx becomes the default IngressClass
+  service:
+    annotations:
+      metallb.universe.tf/loadBalancerIPs: 192.168.8.63
+  # Traffic arrives from the single Caddy edge; keep defaults simple.
+  config:
+    use-forwarded-headers: "true"   # trust X-Forwarded-* from Caddy/Cloudflare

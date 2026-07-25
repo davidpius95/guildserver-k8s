@@ -1,0 +1,20 @@
+# MetalLB address pool (L2 mode) — gives type=LoadBalancer Services a real LAN IP.
+# Applied after the MetalLB controller is running (CRDs must exist first).
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: lan-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    - 192.168.8.63-192.168.8.69   # nodes use .60-.62, API VIP is .59
+---
+# L2 mode: one elected node answers ARP for a pool IP and forwards to the Service.
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: lan-l2
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+    - lan-pool
