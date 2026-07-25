@@ -18,6 +18,9 @@ it was built.
 > 📚 **[Learning journal → `docs/LEARNING-JOURNAL.md`](docs/LEARNING-JOURNAL.md)** — the
 > teaching companion: the reasoning at each step, every bug→diagnosis→fix, how it maps to
 > enterprise/datacenter practice, and a path to becoming an expert.
+>
+> 🔑 **[Access guide → `docs/ACCESS.md`](docs/ACCESS.md)** — every URL, how to log into each,
+> `kubectl` access, and where each secret lives in the vault (secrets are never in this repo).
 
 ## Cluster at a glance
 
