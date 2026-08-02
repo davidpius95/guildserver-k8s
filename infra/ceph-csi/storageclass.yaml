@@ -1,11 +1,13 @@
-# Default StorageClass — every PVC without an explicit class provisions an RBD
-# image from the dedicated 'k8s-rbd' Ceph pool (size=3, min_size=2).
+# RETIRED as the default StorageClass — superseded by Longhorn (infra/longhorn/).
+# Kept for reference and for migrating any remaining Ceph-backed PVCs. This class
+# reaches the Guild-A Ceph cluster; the k8s nodes now run on Guild-B, so using it
+# reintroduces a cross-cluster storage dependency. See infra/longhorn/README.md.
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: ceph-rbd
   annotations:
-    storageclass.kubernetes.io/is-default-class: "true"
+    storageclass.kubernetes.io/is-default-class: "false"
 provisioner: rbd.csi.ceph.com
 parameters:
   clusterID: "1a5dc75a-1f86-4467-ac56-1a4fc6ce6510"

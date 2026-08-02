@@ -286,9 +286,9 @@ flowchart LR
 ```mermaid
 flowchart LR
     APP[Stateful app<br/>e.g. Postgres] --> PVC[PersistentVolumeClaim<br/>'give me 10Gi']
-    PVC --> SC[StorageClass<br/>ceph-rbd default]
-    SC --> CSI[Ceph-CSI driver]
-    CSI --> RBD[(Ceph RBD pool<br/>on Guild-A)]
+    PVC --> SC[StorageClass<br/>longhorn default]
+    SC --> CSI[Longhorn CSI driver]
+    CSI --> RBD[(Replicated volumes<br/>on Guild-B workers)]
     RBD -->|block device| APP
 ```
 

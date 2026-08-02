@@ -1,12 +1,13 @@
 # Example: a 1Gi Ceph-backed volume and a pod that mounts it.
-# The default StorageClass (ceph-rbd) provisions an RBD image in the k8s-rbd pool.
+# NOTE: ceph-rbd is no longer the default class (Longhorn is). This PVC only works
+# while Ceph-CSI is still installed and Guild-A is reachable.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: ceph-test-pvc
 spec:
   accessModes: [ReadWriteOnce]
-  storageClassName: ceph-rbd           # omit to use the default class
+  storageClassName: ceph-rbd           # must be explicit; default is now 'longhorn'
   resources:
     requests:
       storage: 1Gi

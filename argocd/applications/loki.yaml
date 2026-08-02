@@ -24,7 +24,7 @@ spec:
           isDefault: false        # Prometheus is Grafana's default datasource, not Loki
           persistence:
             enabled: true
-            storageClassName: ceph-rbd
+            storageClassName: longhorn
             size: 8Gi
           resources:
             requests: {cpu: 100m, memory: 256Mi}
