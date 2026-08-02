@@ -388,6 +388,23 @@ flowchart LR
 
 ---
 
+
+### Control-plane metrics exposure
+
+kubeadm binds `kube-controller-manager`, `kube-scheduler`, `kube-proxy` and `etcd`
+metrics to `127.0.0.1`. A Prometheus running in a pod can therefore never reach them —
+yet kube-prometheus-stack ships ServiceMonitors for all four regardless, so those
+targets sit permanently `down` and the corresponding dashboards and alerts are
+**silently blind**. Nothing errors; the data is simply absent.
+
+`scripts/expose-controlplane-metrics.sh` widens the bind addresses.
+
+Security trade-off, stated explicitly: controller-manager and scheduler serve
+`/metrics` over HTTPS with authn/authz, so widening them still requires a token.
+etcd's `:2381` is a metrics-only listener — no client API, no key material.
+**kube-proxy's `:10249` is plain HTTP with no authentication** — acceptable on a
+trusted LAN, but firewall it to the monitoring subnet on anything less.
+
 ## 11. Security & Policy  🟢 LIVE (Phase 9)
 
 - **RBAC (live):** a `developer` ServiceAccount with a namespaced read-only Role — verified:
