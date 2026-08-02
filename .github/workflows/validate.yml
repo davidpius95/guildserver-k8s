@@ -39,6 +39,8 @@ jobs:
       - name: Validate Kubernetes manifests
         # Validates raw manifests under apps/ and infra/. Helm values.yaml files are
         # inputs to charts (no kind/apiVersion), not manifests, so they're skipped.
+        # compose.yaml files are Docker Compose (e.g. the off-cluster Velero MinIO
+        # target), likewise not Kubernetes manifests.
         # CRD-based kinds (ClusterPolicy, Application, Backup) are skipped via
         # -ignore-missing-schemas since their schemas aren't in the default registry.
         run: |
@@ -46,5 +48,5 @@ jobs:
           files=(apps/**/*.yaml infra/**/*.yaml)
           if [ ${#files[@]} -eq 0 ]; then echo "no manifests to validate yet"; exit 0; fi
           kubeconform -strict -ignore-missing-schemas \
-            -ignore-filename-pattern 'values\.yaml$' \
+            -ignore-filename-pattern '(values|compose)\.yaml$' \
             -summary "${files[@]}"
