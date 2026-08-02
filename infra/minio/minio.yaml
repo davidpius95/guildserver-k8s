@@ -8,7 +8,7 @@ metadata:
   namespace: minio
 spec:
   accessModes: [ReadWriteOnce]
-  storageClassName: ceph-rbd
+  storageClassName: longhorn
   resources:
     requests:
       storage: 10Gi

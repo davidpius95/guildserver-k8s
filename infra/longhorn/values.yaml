@@ -1,0 +1,37 @@
+# Longhorn — in-cluster replicated block storage for Guild-B.
+#
+# Replaces Ceph-CSI as the cluster's storage backend. Ceph-CSI pointed at the
+# Guild-A Ceph cluster; after the k8s nodes moved to Guild-B that became a
+# cross-cluster dependency (Guild-A down => every PV unavailable). Longhorn
+# replicates across the Guild-B worker nodes themselves, so the cluster is
+# self-contained.
+#
+# Each worker contributes a dedicated 100G disk mounted at /var/lib/longhorn
+# (backed by Guild-B local-lvm). Prereq on every node: `iscsid` enabled+running.
+#
+# Install:
+#   helm repo add longhorn https://charts.longhorn.io
+#   helm upgrade --install longhorn longhorn/longhorn \
+#     --namespace longhorn-system --create-namespace -f values.yaml
+
+persistence:
+  # Longhorn's StorageClass is the cluster default now that ceph-rbd is retired.
+  defaultClass: true
+  # Only two schedulable workers (k8s-cp-1 is tainted NoSchedule), so 2 replicas
+  # is the maximum. Raise to 3 if a third worker is added.
+  defaultClassReplicaCount: 2
+  defaultFsType: ext4
+
+defaultSettings:
+  defaultReplicaCount: 2
+  # Dedicated disk per worker, not the root filesystem.
+  defaultDataPath: /var/lib/longhorn
+  # Don't co-locate both replicas of a volume on one node.
+  replicaSoftAntiAffinity: false
+  # With only 2 nodes there is no spare node to rebuild onto; keep the
+  # scheduler honest about actual free space.
+  storageOverProvisioningPercentage: 100
+  storageMinimalAvailablePercentage: 15
+
+longhornUI:
+  replicas: 1

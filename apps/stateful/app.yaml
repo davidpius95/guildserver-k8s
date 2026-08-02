@@ -1,7 +1,7 @@
 # Stateful demo that ties every layer together:
-#   GitOps (ArgoCD) -> Ceph PV (Ceph-CSI) -> Ingress (nginx+Caddy+Cloudflare)
+#   GitOps (ArgoCD) -> Longhorn PV -> Ingress (nginx+Caddy+Cloudflare)
 #   -> monitored (Prometheus/Promtail) -> policy-clean (Kyverno: limits, owner, no :latest).
-# The page is written ONCE to the Ceph volume; killing the pod keeps the same content,
+# The page is written ONCE to the Longhorn volume; killing the pod keeps the same content,
 # proving durable storage.
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -10,7 +10,7 @@ metadata:
   namespace: stateful
 spec:
   accessModes: [ReadWriteOnce]
-  storageClassName: ceph-rbd
+  storageClassName: longhorn
   resources:
     requests:
       storage: 1Gi
