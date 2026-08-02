@@ -1,0 +1,29 @@
+# Daily full-cluster backup, 02:00, retained 30 days.
+#
+# defaultVolumesToFsBackup: back up PVC *file data* via node-agent/kopia, not just
+# the Kubernetes objects. Longhorn CSI snapshots are not used.
+#
+# Excluded namespaces:
+#   kube-system      — rebuilt by kubeadm/Cilium, not useful to restore piecemeal
+#   longhorn-system  — the storage layer itself; restoring it into a live cluster
+#                      would fight the running installation
+#
+# NOTE: `kubectl get backup` resolves to backups.longhorn.io on this cluster, not
+# Velero's. Always qualify: `kubectl -n velero get backups.velero.io`.
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: daily-full
+  namespace: velero
+spec:
+  schedule: "0 2 * * *"
+  useOwnerReferencesInBackup: false
+  template:
+    ttl: 720h0m0s                 # 30 days
+    defaultVolumesToFsBackup: true
+    storageLocation: default
+    includedNamespaces:
+      - '*'
+    excludedNamespaces:
+      - kube-system
+      - longhorn-system

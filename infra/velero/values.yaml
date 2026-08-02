@@ -1,4 +1,13 @@
-# Velero — backup/restore, targeting the in-cluster MinIO S3 store.
+# Velero — backup/restore, targeting MinIO running OFF-cluster on Guild-A.
+#
+# This used to point at an in-cluster MinIO (minio.minio.svc) whose own data sat
+# on a PVC in this very cluster — a circular dependency: MinIO could never have
+# restored itself, and losing the cluster lost the backups with it. The target is
+# now a standalone MinIO on the Guild-A mediastack VM (192.168.8.246:9000,
+# /opt/velero-minio, data under /data/backups/minio), a separate failure domain.
+#
+# NOTE: still same-site. For real disaster recovery, replicate this bucket to
+# genuinely off-site object storage.
 # Uses File System Backup (node-agent/kopia) so PVC *data* (not just k8s objects)
 # is backed up — works with any storage, no CSI snapshot CRDs needed.
 initContainers:
@@ -11,7 +20,7 @@ initContainers:
 
 credentials:
   useSecret: true
-  existingSecret: velero-credentials   # created out-of-band; AWS-style creds for MinIO
+  existingSecret: velero-credentials   # created out-of-band; AWS-style creds for the Guild-A MinIO
 
 configuration:
   backupStorageLocation:
@@ -22,7 +31,7 @@ configuration:
       config:
         region: minio
         s3ForcePathStyle: "true"
-        s3Url: http://minio.minio.svc:9000
+        s3Url: http://192.168.8.246:9000    # MinIO on Guild-A
   defaultVolumesToFsBackup: true       # back up volume file data by default
 
 snapshotsEnabled: false                # no cloud/CSI volume snapshots; FSB instead

@@ -292,10 +292,17 @@ flowchart LR
     RBD -->|block device| APP
 ```
 
-### Ceph-CSI
-- **What:** A driver that lets Kubernetes dynamically carve volumes out of the existing
-  Guild-A Ceph cluster. A pod asks for storage via a `PersistentVolumeClaim`; Ceph-CSI
-  provisions an RBD image and mounts it into the pod — no manual disk work.
+### Longhorn  (replaced Ceph-CSI)
+- **What:** In-cluster replicated block storage. A pod asks for storage via a
+  `PersistentVolumeClaim`; Longhorn carves it out of dedicated disks on the worker
+  nodes and keeps 2 replicas across them.
+- **Why it replaced Ceph-CSI:** the nodes were live-migrated from Guild-A to Guild-B.
+  Ceph-CSI kept reaching back to Guild-A's monitors, leaving compute on one cluster
+  dependent on another for storage. Longhorn keeps the data on Guild-B itself.
+
+### Ceph-CSI  (retired)
+- **What it was:** A driver that let Kubernetes carve volumes out of the Guild-A Ceph
+  cluster, provisioning an RBD image per PVC.
 - **Why it's special here:** most homelabs fake persistent storage (hostPath/local). This
   cluster gets **real, replicated, network-attached block storage** because Ceph already
   exists. Stateful workloads (databases, queues) can run for real.

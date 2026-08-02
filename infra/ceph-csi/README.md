@@ -1,3 +1,8 @@
+> **RETIRED — not deployed.** Ceph-CSI has been uninstalled from the cluster and the
+> `ceph-rbd` StorageClass deleted. Storage is now Longhorn (see `../longhorn/`).
+> These manifests are kept only as a record of the previous setup; re-applying them
+> would reintroduce a dependency on Guild-A's Ceph.
+
 # Ceph-CSI — dynamic persistent storage
 
 Wires Kubernetes to the existing Guild-A Ceph cluster so `PersistentVolumeClaim`s
