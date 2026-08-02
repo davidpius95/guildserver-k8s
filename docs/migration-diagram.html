@@ -1,0 +1,944 @@
+<title>Cross-Cluster Kubernetes Migration — Guild-A → Guild-B</title>
+<style>
+  :root {
+    --ink:        #0A1017;
+    --surface:    #FFFFFF;
+    --surface-2:  #F3F5F8;
+    --surface-3:  #E7EBF0;
+    --line:       #CBD4DE;
+    --line-soft:  #E1E7ED;
+    --text:       #14202B;
+    --text-2:     #4C5F72;
+    --text-3:     #77899A;
+    --amber:      #A8611F;
+    --amber-bg:   #FBF0E4;
+    --teal:       #10695F;
+    --teal-bg:    #E2F1EE;
+    --danger:     #A33A32;
+    --danger-bg:  #FBEBE9;
+    --good:       #1F6B3A;
+    --good-bg:    #E6F2EA;
+    --violet:     #5B4A9E;
+    --violet-bg:  #EDEAF7;
+
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+
+    --r: 3px;
+    --maxw: 1180px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface:    #0A1017;
+      --surface-2:  #111A24;
+      --surface-3:  #1A2632;
+      --line:       #27343F;
+      --line-soft:  #1B2530;
+      --text:       #DCE5EE;
+      --text-2:     #93A4B5;
+      --text-3:     #6A7B8C;
+      --amber:      #D99A55;
+      --amber-bg:   #2A1D0F;
+      --teal:       #4FBFAF;
+      --teal-bg:    #0D2622;
+      --danger:     #E08079;
+      --danger-bg:  #2B1512;
+      --good:       #6BBF87;
+      --good-bg:    #10251A;
+      --violet:     #A395DE;
+      --violet-bg:  #1B1730;
+    }
+  }
+  :root[data-theme="dark"] {
+      --surface:    #0A1017;
+      --surface-2:  #111A24;
+      --surface-3:  #1A2632;
+      --line:       #27343F;
+      --line-soft:  #1B2530;
+      --text:       #DCE5EE;
+      --text-2:     #93A4B5;
+      --text-3:     #6A7B8C;
+      --amber:      #D99A55;
+      --amber-bg:   #2A1D0F;
+      --teal:       #4FBFAF;
+      --teal-bg:    #0D2622;
+      --danger:     #E08079;
+      --danger-bg:  #2B1512;
+      --good:       #6BBF87;
+      --good-bg:    #10251A;
+      --violet:     #A395DE;
+      --violet-bg:  #1B1730;
+  }
+  :root[data-theme="light"] {
+      --surface:    #FFFFFF;
+      --surface-2:  #F3F5F8;
+      --surface-3:  #E7EBF0;
+      --line:       #CBD4DE;
+      --line-soft:  #E1E7ED;
+      --text:       #14202B;
+      --text-2:     #4C5F72;
+      --text-3:     #77899A;
+      --amber:      #A8611F;
+      --amber-bg:   #FBF0E4;
+      --teal:       #10695F;
+      --teal-bg:    #E2F1EE;
+      --danger:     #A33A32;
+      --danger-bg:  #FBEBE9;
+      --good:       #1F6B3A;
+      --good-bg:    #E6F2EA;
+      --violet:     #5B4A9E;
+      --violet-bg:  #EDEAF7;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--surface);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: var(--maxw);
+    margin: 0 auto;
+    padding: 0 24px 96px;
+  }
+
+  /* ---------- type ---------- */
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin: 0;
+  }
+  h1 {
+    font-family: var(--mono);
+    font-size: clamp(26px, 4.4vw, 44px);
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+    font-weight: 600;
+    text-wrap: balance;
+    margin: 14px 0 0;
+  }
+  h2 {
+    font-family: var(--mono);
+    font-size: clamp(19px, 2.6vw, 25px);
+    letter-spacing: -0.01em;
+    font-weight: 600;
+    text-wrap: balance;
+    margin: 0;
+  }
+  h3 {
+    font-family: var(--mono);
+    font-size: 14px;
+    letter-spacing: 0.01em;
+    font-weight: 600;
+    margin: 0;
+  }
+  p { margin: 0; max-width: 68ch; }
+  .lede { font-size: 17px; color: var(--text-2); max-width: 66ch; }
+  .muted { color: var(--text-2); }
+  .small { font-size: 13.5px; }
+  code, .m { font-family: var(--mono); font-size: 0.9em; }
+  code {
+    background: var(--surface-2);
+    border: 1px solid var(--line-soft);
+    border-radius: var(--r);
+    padding: 1px 5px;
+  }
+
+  /* ---------- masthead ---------- */
+  header.top {
+    border-bottom: 1px solid var(--line);
+    background: var(--surface-2);
+    padding: 56px 0 40px;
+    margin-bottom: 0;
+  }
+  header.top .wrap { padding-bottom: 0; }
+  .rule-row {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 4px;
+  }
+  .rule-row .bar { height: 2px; flex: 1; background: var(--line); }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    margin-top: 34px;
+  }
+  .stat { background: var(--surface); padding: 16px 18px; }
+  .stat .k {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--text-3); display: block; margin-bottom: 6px;
+  }
+  .stat .v {
+    font-family: var(--mono); font-size: 21px; font-weight: 600;
+    font-variant-numeric: tabular-nums; letter-spacing: -0.02em; display: block;
+  }
+  .stat .v.hi { color: var(--good); }
+
+  /* ---------- phase scaffold ---------- */
+  section.phase { padding-top: 64px; }
+  .phase-head {
+    display: flex; gap: 18px; align-items: baseline;
+    border-bottom: 1px solid var(--line); padding-bottom: 14px; margin-bottom: 28px;
+  }
+  .phase-num {
+    font-family: var(--mono); font-size: 12px; font-weight: 600;
+    letter-spacing: 0.1em; color: var(--text-3); white-space: nowrap;
+    padding-top: 4px;
+  }
+  .phase-head .txt { display: flex; flex-direction: column; gap: 7px; }
+
+  /* ---------- cluster columns ---------- */
+  .field {
+    display: grid;
+    grid-template-columns: 1fr 92px 1fr;
+    gap: 0;
+    align-items: stretch;
+    margin: 26px 0;
+  }
+  @media (max-width: 780px) {
+    .field { grid-template-columns: 1fr; }
+    .field .gutter { min-height: 68px; }
+  }
+
+  .cluster {
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    padding: 0 0 18px;
+  }
+  .cluster.a { border-top: 3px solid var(--amber); }
+  .cluster.b { border-top: 3px solid var(--teal); }
+  .cluster.ghost { opacity: 0.5; }
+
+  .cluster-hd {
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid var(--line-soft);
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .cluster-hd .nm {
+    font-family: var(--mono); font-size: 14px; font-weight: 600; letter-spacing: 0.02em;
+  }
+  .cluster.a .nm { color: var(--amber); }
+  .cluster.b .nm { color: var(--teal); }
+  .cluster-hd .sub {
+    font-family: var(--mono); font-size: 11px; color: var(--text-3); letter-spacing: 0.03em;
+  }
+
+  .cbody { padding: 16px 18px 0; display: flex; flex-direction: column; gap: 12px; }
+
+  /* node / component tiles */
+  .tiles { display: flex; flex-direction: column; gap: 6px; }
+  .tile {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    border-radius: var(--r);
+    padding: 9px 11px;
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    font-family: var(--mono); font-size: 12px;
+  }
+  .tile .lbl { font-weight: 600; }
+  .tile .meta { color: var(--text-3); font-size: 11px; text-align: right; white-space: nowrap; }
+  .tile.on-a { border-left: 3px solid var(--amber); }
+  .tile.on-b { border-left: 3px solid var(--teal); }
+  .tile.dim { opacity: 0.45; }
+
+  .store {
+    border: 1px dashed var(--line);
+    background: var(--surface-3);
+    border-radius: var(--r);
+    padding: 11px 12px;
+    font-family: var(--mono); font-size: 11.5px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .store .t { font-weight: 600; font-size: 12px; }
+  .store.amber { border-color: var(--amber); color: var(--text); }
+  .store.teal  { border-color: var(--teal); }
+  .store .cap { color: var(--text-3); }
+
+  /* gutter arrows */
+  .gutter {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 8px;
+    padding: 8px 4px;
+  }
+  .gutter .arrow-lbl {
+    font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-3);
+    writing-mode: vertical-rl; text-orientation: mixed;
+  }
+  @media (max-width: 780px) {
+    .gutter .arrow-lbl { writing-mode: horizontal-tb; }
+  }
+  .gutter svg { display: block; }
+
+  /* ---------- decision compare ---------- */
+  .compare {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 24px 0 8px;
+  }
+  @media (max-width: 780px) { .compare { grid-template-columns: 1fr; } }
+  .opt {
+    border: 1px solid var(--line); border-radius: var(--r);
+    padding: 16px 18px; display: flex; flex-direction: column; gap: 10px;
+    background: var(--surface-2);
+  }
+  .opt.bad  { border-left: 3px solid var(--danger); }
+  .opt.good { border-left: 3px solid var(--good); }
+  .opt .verdict {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em;
+    text-transform: uppercase; font-weight: 600;
+  }
+  .opt.bad .verdict { color: var(--danger); }
+  .opt.good .verdict { color: var(--good); }
+  .steps { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 5px; counter-reset: s; }
+  .steps li {
+    font-family: var(--mono); font-size: 12px; color: var(--text-2);
+    padding-left: 24px; position: relative; line-height: 1.45;
+  }
+  .steps li::before {
+    counter-increment: s; content: counter(s);
+    position: absolute; left: 0; top: 0;
+    font-size: 10px; color: var(--text-3);
+    border: 1px solid var(--line); border-radius: 2px;
+    width: 16px; height: 16px; display: grid; place-items: center;
+  }
+
+  .callout {
+    border-left: 3px solid var(--violet);
+    background: var(--violet-bg);
+    padding: 14px 18px;
+    margin: 22px 0;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .callout .tag {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--violet); font-weight: 600;
+  }
+  .callout p { font-size: 14.5px; }
+
+  /* ---------- mechanism strip ---------- */
+  .mech {
+    border: 1px solid var(--line); background: var(--surface-2);
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+    gap: 1px; background: var(--line); margin: 22px 0;
+  }
+  .mech > div { background: var(--surface-2); padding: 14px 16px; display: flex; flex-direction: column; gap: 5px; }
+  .mech .n {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em;
+    color: var(--text-3); text-transform: uppercase;
+  }
+  .mech .h { font-family: var(--mono); font-size: 12.5px; font-weight: 600; }
+  .mech .d { font-size: 12.5px; color: var(--text-2); line-height: 1.45; }
+
+  /* ---------- results table ---------- */
+  .tablewrap { overflow-x: auto; margin: 22px 0; border: 1px solid var(--line); }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; }
+  th, td {
+    text-align: left; padding: 10px 14px;
+    border-bottom: 1px solid var(--line-soft);
+    font-size: 13px;
+  }
+  th {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-3); font-weight: 600;
+    background: var(--surface-2); border-bottom: 1px solid var(--line);
+  }
+  td.m, td .m { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  tr:last-child td { border-bottom: none; }
+  .pill {
+    display: inline-block; font-family: var(--mono); font-size: 10.5px;
+    letter-spacing: 0.06em; padding: 2px 7px; border-radius: 2px; font-weight: 600;
+  }
+  .pill.ok   { background: var(--good-bg);   color: var(--good); }
+  .pill.warn { background: var(--amber-bg);  color: var(--amber); }
+
+  /* ---------- challenges ---------- */
+  .chal-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+    gap: 14px; margin: 26px 0;
+  }
+  .chal {
+    border: 1px solid var(--line); border-top: 3px solid var(--danger);
+    background: var(--surface-2); padding: 15px 17px;
+    display: flex; flex-direction: column; gap: 9px;
+  }
+  .chal .id {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em;
+    color: var(--text-3); text-transform: uppercase;
+  }
+  .chal .sym { font-size: 13px; color: var(--text-2); line-height: 1.5; }
+  .chal .fix {
+    border-top: 1px solid var(--line-soft); padding-top: 9px;
+    font-size: 13px; line-height: 1.5;
+  }
+  .chal .fix b { color: var(--good); font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; display: block; margin-bottom: 3px; font-weight: 600; }
+  .chal.silent { border-top-color: var(--violet); }
+  .chal.silent .id { color: var(--violet); }
+
+  /* ---------- principles ---------- */
+  .principles { display: flex; flex-direction: column; gap: 1px; background: var(--line); border: 1px solid var(--line); margin: 24px 0; }
+  .pr { background: var(--surface-2); padding: 15px 18px; display: grid; grid-template-columns: 210px 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 700px) { .pr { grid-template-columns: 1fr; gap: 5px; } }
+  .pr .t { font-family: var(--mono); font-size: 12.5px; font-weight: 600; }
+  .pr .d { font-size: 13.5px; color: var(--text-2); line-height: 1.55; }
+
+  /* ---------- limits ---------- */
+  .limits { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 22px 0; }
+  .lim { border: 1px solid var(--line); border-left: 3px solid var(--amber); background: var(--surface-2); padding: 13px 15px; display: flex; flex-direction: column; gap: 5px; }
+  .lim .t { font-family: var(--mono); font-size: 12px; font-weight: 600; }
+  .lim .d { font-size: 12.5px; color: var(--text-2); line-height: 1.5; }
+
+  footer.end {
+    margin-top: 72px; padding-top: 22px; border-top: 1px solid var(--line);
+    font-family: var(--mono); font-size: 11.5px; color: var(--text-3);
+    display: flex; flex-wrap: wrap; gap: 8px 22px;
+  }
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <p class="eyebrow">Infrastructure Migration · Post-Implementation Record</p>
+    <h1>Cross-Cluster Kubernetes Migration<br>Guild-A&nbsp;→&nbsp;Guild-B</h1>
+    <div class="stats">
+      <div class="stat"><span class="k">Workload downtime</span><span class="v hi">0s</span></div>
+      <div class="stat"><span class="k">Nodes migrated</span><span class="v">3</span></div>
+      <div class="stat"><span class="k">Pods in flight</span><span class="v">88</span></div>
+      <div class="stat"><span class="k">Volumes re-hosted</span><span class="v">6</span></div>
+      <div class="stat"><span class="k">Data lost</span><span class="v hi">None</span></div>
+      <div class="stat"><span class="k">Rollback</span><span class="v hi">Always</span></div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ========== 00 ========== -->
+  <section class="phase">
+    <div class="phase-head">
+      <span class="phase-num">PHASE 00</span>
+      <span class="txt">
+        <h2>Starting state &amp; the coupling problem</h2>
+        <p class="lede">A live Kubernetes cluster running as three VMs on one Proxmox cluster — with
+        both its compute <em>and</em> its persistent storage in the same failure domain.</p>
+      </span>
+    </div>
+
+    <div class="field">
+      <div class="cluster a">
+        <div class="cluster-hd">
+          <span class="nm">GUILD-A</span>
+          <span class="sub">Proxmox 9.2 · 5 nodes · Ceph</span>
+        </div>
+        <div class="cbody">
+          <div class="tiles">
+            <div class="tile on-a"><span class="lbl">k8s-cp-1</span><span class="meta">VM 120 · nodeD · 8 GB</span></div>
+            <div class="tile on-a"><span class="lbl">k8s-w-1</span><span class="meta">VM 121 · nodeE · 6 GB</span></div>
+            <div class="tile on-a"><span class="lbl">k8s-w-2</span><span class="meta">VM 122 · nodeB · 6 GB</span></div>
+          </div>
+          <div class="store amber">
+            <span class="t">Ceph RBD · 4 OSDs</span>
+            <span class="cap">1.01 TB raw → <strong>337 GB usable</strong> (size=3)</span>
+            <span class="cap">pools: ceph-vm · k8s-rbd</span>
+            <span class="cap">6 PVs via Ceph-CSI</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="gutter">
+        <span class="arrow-lbl">coupled</span>
+      </div>
+
+      <div class="cluster b ghost">
+        <div class="cluster-hd">
+          <span class="nm">GUILD-B</span>
+          <span class="sub">Proxmox 9.2 · 5 nodes · no shared storage</span>
+        </div>
+        <div class="cbody">
+          <div class="tiles">
+            <div class="tile dim"><span class="lbl">podA</span><span class="meta">22 core · 66 GB</span></div>
+            <div class="tile dim"><span class="lbl">podD</span><span class="meta">12 core · 16 GB</span></div>
+            <div class="tile dim"><span class="lbl">podE</span><span class="meta">6 core · 16 GB</span></div>
+          </div>
+          <div class="store teal">
+            <span class="t">local-lvm (per node)</span>
+            <span class="cap">≈ <strong>13 TB</strong> aggregate, unreplicated</span>
+            <span class="cap">no cross-node shared tier</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="small muted">Platform under migration: Kubernetes v1.36.3 · Cilium CNI · kube-vip
+    (<span class="m">192.168.8.59</span>) · single-member etcd · MetalLB · ingress-nginx · ArgoCD app-of-apps
+    (<span class="m">selfHeal</span> + <span class="m">prune</span>) · Kyverno · Prometheus / Grafana / Loki ·
+    Velero · MinIO · Portainer — 17 namespaces.</p>
+  </section>
+
+  <!-- ========== 01 ========== -->
+  <section class="phase">
+    <div class="phase-head">
+      <span class="phase-num">PHASE 01</span>
+      <span class="txt">
+        <h2>The sequencing decision</h2>
+        <p class="lede">The instinct was to decouple storage first, then move compute. That ordering
+        is wrong — and understanding why is the single most consequential design call in the project.</p>
+      </span>
+    </div>
+
+    <div class="compare">
+      <div class="opt bad">
+        <span class="verdict">✕ Decouple storage first</span>
+        <ol class="steps">
+          <li>Build the replacement storage tier on Guild-A's <strong>constrained 337 GB Ceph</strong></li>
+          <li>Migrate 6 volumes onto it</li>
+          <li>Migrate VMs, now dragging the new storage disks across the wire too</li>
+        </ol>
+        <p class="small muted">Builds the escape route inside the thing being escaped, and doubles the
+        data that has to cross the network.</p>
+      </div>
+      <div class="opt good">
+        <span class="verdict">✓ Migrate compute first</span>
+        <ol class="steps">
+          <li>Live-migrate the 3 VMs to Guild-B</li>
+          <li>Build storage on Guild-B's <strong>terabytes of local-lvm</strong></li>
+          <li>Copy volumes across — Guild-A's Ceph is still readable over the shared L2</li>
+        </ol>
+        <p class="small muted">Same destination, far less risk, and the copy happens live inside one
+        cluster instead of between two.</p>
+      </div>
+    </div>
+
+    <div class="callout">
+      <span class="tag">Architectural principle</span>
+      <p>The temporary cross-cluster dependency isn't a flaw to be designed out — <strong>it is the
+      bridge that makes an online data migration possible.</strong> You read from the old storage and
+      write to the new one, live, within a single cluster. A temporary dependency that enables an
+      online cutover is worth more than architectural purity that forces an outage.</p>
+    </div>
+  </section>
+
+  <!-- ========== 02 ========== -->
+  <section class="phase">
+    <div class="phase-head">
+      <span class="phase-num">PHASE 02</span>
+      <span class="txt">
+        <h2>Live VM migration</h2>
+        <p class="lede">Proxmox has no native cross-cluster live migration in the clustered sense.
+        Both sides ran PVE 9.2, which exposes an experimental <span class="m">remote_migrate</span> API
+        supporting online transfer.</p>
+      </span>
+    </div>
+
+    <div class="mech">
+      <div>
+        <span class="n">Preflight</span>
+        <span class="h">Shared L2 verified</span>
+        <span class="d">Both clusters on <span class="m">192.168.8.0/24</span> — IPs and bridges carry
+        over untouched. The corollary: never run both copies at once.</span>
+      </div>
+      <div>
+        <span class="n">Preflight</span>
+        <span class="h">VMID collision audit</span>
+        <span class="d">Guild-B already used 101, 102, 300, 9000, 9002. 120–122 were free, so no
+        remapping was needed.</span>
+      </div>
+      <div>
+        <span class="n">Transport</span>
+        <span class="h">WebSocket tunnel v2</span>
+        <span class="d">Disk mirrored via NBD, then RAM state converged iteratively while the VM kept
+        serving from the source.</span>
+      </div>
+      <div>
+        <span class="n">Safety</span>
+        <span class="h"><span class="m">delete</span> left unset</span>
+        <span class="d">Each source VM retained in a <strong>stopped</strong> state with
+        <span class="m">lock: migrate</span> — rollback available at every step.</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="cluster a">
+        <div class="cluster-hd">
+          <span class="nm">GUILD-A</span><span class="sub">draining → source</span>
+        </div>
+        <div class="cbody">
+          <div class="tiles">
+            <div class="tile dim"><span class="lbl">k8s-w-2</span><span class="meta">drained · cordoned</span></div>
+            <div class="tile dim"><span class="lbl">k8s-w-1</span><span class="meta">drained · cordoned</span></div>
+            <div class="tile dim"><span class="lbl">k8s-cp-1</span><span class="meta">not drained — see note</span></div>
+          </div>
+          <div class="store amber"><span class="t">Ceph still serving PVs</span><span class="cap">the bridge stays up</span></div>
+        </div>
+      </div>
+
+      <div class="gutter">
+        <svg width="46" height="120" viewBox="0 0 46 120" aria-hidden="true">
+          <defs>
+            <marker id="ah" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+              <path d="M0,0 L7,3.5 L0,7 z" fill="currentColor"/>
+            </marker>
+          </defs>
+          <g stroke="currentColor" stroke-width="1.5" marker-end="url(#ah)" fill="none" opacity="0.75">
+            <line x1="2" y1="24" x2="40" y2="24"/>
+            <line x1="2" y1="60" x2="40" y2="60"/>
+            <line x1="2" y1="96" x2="40" y2="96"/>
+          </g>
+        </svg>
+        <span class="arrow-lbl">live · online=1</span>
+      </div>
+
+      <div class="cluster b">
+        <div class="cluster-hd">
+          <span class="nm">GUILD-B</span><span class="sub">target · local-lvm</span>
+        </div>
+        <div class="cbody">
+          <div class="tiles">
+            <div class="tile on-b"><span class="lbl">k8s-w-2</span><span class="meta">→ podD · 52 min</span></div>
+            <div class="tile on-b"><span class="lbl">k8s-w-1</span><span class="meta">→ podE · 43 min</span></div>
+            <div class="tile on-b"><span class="lbl">k8s-cp-1</span><span class="meta">→ podA · 60 min</span></div>
+          </div>
+          <div class="store teal"><span class="t">local-lvm</span><span class="cap">128 GB transferred @ ~12 MB/s</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Node</th><th>Route</th><th>Disk</th><th>Duration</th><th>Uptime preserved</th><th>K8s saw</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="m">k8s-w-2</td><td class="m">nodeB → podD</td><td class="m">40 GB</td><td class="m">~52 min</td><td class="m">3121 s</td><td><span class="pill ok">never NotReady</span></td></tr>
+          <tr><td class="m">k8s-w-1</td><td class="m">nodeE → podE</td><td class="m">40 GB</td><td class="m">~43 min</td><td class="m">2549 s</td><td><span class="pill ok">never NotReady</span></td></tr>
+          <tr><td class="m">k8s-cp-1</td><td class="m">nodeD → podA</td><td class="m">48 GB</td><td class="m">~60 min</td><td class="m">2565 s</td><td><span class="pill ok">never NotReady</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <span class="tag">Control plane — different rules</span>
+      <p><span class="m">k8s-cp-1</span> was deliberately <strong>not drained</strong>. It carries a
+      <span class="m">NoSchedule</span> taint and hosts only static pods (etcd, apiserver, scheduler,
+      controller-manager, kube-vip) plus DaemonSets. Static pods are kubelet-managed and cannot be
+      evicted — draining would have churned CoreDNS for no benefit. One genuine advantage here:
+      <strong>single-member etcd has no quorum election to disrupt</strong> during the cutover pause;
+      it simply resumes.</p>
+    </div>
+  </section>
+
+  <!-- ========== 03 ========== -->
+  <section class="phase">
+    <div class="phase-head">
+      <span class="phase-num">PHASE 03</span>
+      <span class="txt">
+        <h2>Storage decoupling</h2>
+        <p class="lede">Compute now lived on Guild-B while all six volumes still resolved to Guild-A's
+        Ceph monitors. The bridge worked exactly as designed — and had to be dismantled deliberately.</p>
+      </span>
+    </div>
+
+    <div class="mech">
+      <div>
+        <span class="n">Engine choice</span>
+        <span class="h">Longhorn · 2 replicas</span>
+        <span class="d">Replicated across the workers' own disks. Rejected: local-path (no replication),
+        Rook-Ceph (far too heavy for 2-core / 6 GB workers).</span>
+      </div>
+      <div>
+        <span class="n">Constraint</span>
+        <span class="h">Two schedulable nodes</span>
+        <span class="d">The control plane is tainted, so <span class="m">replicaCount: 2</span> is the
+        hard ceiling — documented as a known limitation, not hidden.</span>
+      </div>
+      <div>
+        <span class="n">Constraint</span>
+        <span class="h">PVC class is immutable</span>
+        <span class="d">A volume cannot change StorageClass. It must be recreated and its contents
+        copied — names kept identical so manifests barely changed.</span>
+      </div>
+      <div>
+        <span class="n">Method</span>
+        <span class="h">Smallest blast radius first</span>
+        <span class="d">A 1 GiB volume was migrated end-to-end before any production data. It exposed
+        four distinct failure modes.</span>
+      </div>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Volume</th><th>Size</th><th>Data</th><th>Workload shape</th><th>Complication</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="m">stateful/web-data</td><td class="m">1 Gi</td><td class="m">220 B</td><td>Deployment</td><td><span class="pill warn">test case</span></td></tr>
+          <tr><td class="m">…/grafana</td><td class="m">2 Gi</td><td class="m">88.7 M</td><td>Deployment</td><td class="muted">—</td></tr>
+          <tr><td class="m">portainer</td><td class="m">10 Gi</td><td class="m">92 K</td><td>Deployment</td><td class="muted">not GitOps-managed</td></tr>
+          <tr><td class="m">storage-loki-0</td><td class="m">8 Gi</td><td class="m">90.5 M</td><td>StatefulSet</td><td class="muted">immutable claim template</td></tr>
+          <tr><td class="m">…/prometheus-db</td><td class="m">8 Gi</td><td class="m">—</td><td>StatefulSet + Operator</td><td class="muted">operator overrides scale</td></tr>
+          <tr><td class="m">minio-data</td><td class="m">10 Gi</td><td class="m">—</td><td>Deployment</td><td class="muted">is the backup target — last</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ========== 04 ========== -->
+  <section class="phase">
+    <div class="phase-head">
+      <span class="phase-num">PHASE 04</span>
+      <span class="txt">
+        <h2>What actually went wrong</h2>
+        <p class="lede">Every one of these was found by verifying rather than assuming. Several would
+        have caused silent data loss if the happy path had been trusted.</p>
+      </span>
+    </div>
+
+    <div class="chal-grid">
+
+      <article class="chal silent">
+        <span class="id">01 · Silent failure</span>
+        <h3>GitOps reverted the migration</h3>
+        <p class="sym">The test migration <em>appeared</em> to succeed — checksum matched. In reality
+        ArgoCD had reverted the patch within seconds and the pod was still mounting the
+        <strong>old Ceph volume</strong>. The matching checksum was reading the source, not the
+        destination: a false positive that would have "verified" a migration that never happened.</p>
+        <p class="fix"><b>Resolution</b>Change the class in Git first, via reviewed PR. Suspend
+        auto-sync on the <span class="m">root</span> app <em>then</em> the child — order matters — and
+        verify the suspension holds for 30 s before proceeding.</p>
+      </article>
+
+      <article class="chal">
+        <span class="id">02 · Resource lifecycle</span>
+        <h3>Completed Jobs pinned PVCs</h3>
+        <p class="sym"><span class="m">delete pvc</span> hung indefinitely; the volume sat
+        <span class="m">Terminating</span>. A <em>finished</em> Job pod still held the
+        <span class="m">pvc-protection</span> finalizer — a completed pod is still a consumer.</p>
+        <p class="fix"><b>Resolution</b>Delete the Job the moment it completes, before touching the
+        PVC. Encoded into the reusable script.</p>
+      </article>
+
+      <article class="chal silent">
+        <span class="id">03 · Data-loss near miss</span>
+        <h3>A racing pod repopulated the volume</h3>
+        <p class="sym"><span class="m">Multi-Attach error</span> — the app pod grabbed the fresh empty
+        PVC before the copy job could. Worse: that app's <span class="m">seed</span> initContainer
+        writes new content <em>if the volume is empty</em>, which would have overwritten the migrated
+        data and destroyed the exact timestamp being preserved.</p>
+        <p class="fix"><b>Resolution</b>Hold the workload at zero replicas for the entire window — not
+        merely at the start.</p>
+      </article>
+
+      <article class="chal silent">
+        <span class="id">04 · Self-inflicted</span>
+        <h3>A hidden installer failure</h3>
+        <p class="sym">Copy jobs died with <span class="m">rsync: not found</span>. The worker nodes
+        have no outbound egress so the package install failed — but the failure was
+        <strong>invisible because the output had been redirected to <span class="m">/dev/null</span></strong>.
+        Tidy logs turned a loud failure into a confusing one.</p>
+        <p class="fix"><b>Resolution</b>Use <span class="m">cp -a</span>, built into the image, no
+        network required. Never silence installer output.</p>
+      </article>
+
+      <article class="chal">
+        <span class="id">05 · Control hierarchy</span>
+        <h3>The Operator outranked the StatefulSet</h3>
+        <p class="sym">Scaling the Prometheus StatefulSet to zero appeared to work — then the pod
+        returned and pinned the PVC. The <strong>Prometheus Operator</strong> reconciles replicas from
+        the <span class="m">Prometheus</span> CR, so editing the StatefulSet is meaningless.</p>
+        <p class="fix"><b>Resolution</b>Scale via the custom resource. With operator-managed workloads,
+        find the real source of truth — there is often a controller above the object you're editing.</p>
+      </article>
+
+      <article class="chal">
+        <span class="id">06 · API immutability</span>
+        <h3>StatefulSet claim templates are frozen</h3>
+        <p class="sym">ArgoCD failed repeatedly:
+        <span class="m">updates to statefulset spec … are forbidden</span>. Changing the storage class
+        meant changing <span class="m">volumeClaimTemplates</span>, which Kubernetes forbids on an
+        existing StatefulSet.</p>
+        <p class="fix"><b>Resolution</b><span class="m">delete sts --cascade=orphan</span> — removes the
+        controller, leaves pods and PVCs intact — then let GitOps recreate it. It correctly re-adopted
+        the already-migrated volume.</p>
+      </article>
+
+      <article class="chal silent">
+        <span class="id">07 · Misleading health</span>
+        <h3>ArgoCD gave up, and stayed given-up</h3>
+        <p class="sym">Loki's StatefulSet was never recreated and Loki wasn't running <em>at all</em> —
+        yet the application reported <strong>Healthy</strong>. ArgoCD had exhausted 5 retries against
+        the immutable field an hour earlier and backed off; nothing re-triggered it.</p>
+        <p class="fix"><b>Resolution</b>Manual sync. Caught only because the pod list was checked
+        directly. Aggregate status can be green while a component is entirely absent.</p>
+      </article>
+
+      <article class="chal silent">
+        <span class="id">08 · Config drift</span>
+        <h3>A merged Git change never applied</h3>
+        <p class="sym">After the PR set <span class="m">ceph-rbd</span> to non-default, the cluster
+        <strong>still had it as the default StorageClass</strong> — that manifest isn't reconciled by
+        any ArgoCD app. Any new PVC without an explicit class would have silently provisioned straight
+        back onto Guild-A's Ceph.</p>
+        <p class="fix"><b>Resolution</b>Fix at the cluster level too. "It's in Git" is not "it's
+        applied" — know which paths are reconciled and which are documentation.</p>
+      </article>
+
+      <article class="chal">
+        <span class="id">09 · Design flaw found</span>
+        <h3>A circular backup dependency</h3>
+        <p class="sym">Velero backed up to a MinIO pod <em>inside</em> the cluster, whose own data sat
+        on a PVC <em>in that same cluster</em>. It could never have restored itself. Separately: Velero
+        had run for over a week with <strong>zero backups and no schedule</strong> — healthy,
+        validating, doing nothing.</p>
+        <p class="fix"><b>Resolution</b>MinIO redeployed to Guild-A — a separate failure domain — plus
+        a daily schedule, proven with a real 20/20-item backup and bytes confirmed on disk.</p>
+      </article>
+
+      <article class="chal">
+        <span class="id">10 · Tooling trap</span>
+        <h3>A CRD short-name collision</h3>
+        <p class="sym">A polling loop watched a backup for minutes and saw nothing.
+        <span class="m">kubectl get backup</span> resolves to <span class="m">backups.longhorn.io</span>,
+        not Velero's — both CRDs claim the short name, and the wrong resource was returned silently.</p>
+        <p class="fix"><b>Resolution</b>Always qualify: <span class="m">backups.velero.io</span>.
+        Recorded in the repo so the next person loses zero minutes to it.</p>
+      </article>
+
+      <article class="chal">
+        <span class="id">11 · Infrastructure</span>
+        <h3>A wedged hypervisor agent</h3>
+        <p class="sym">The QEMU guest agent stopped responding mid-operation. A guest-side service
+        restart was insufficient — the virtio-serial channel required a full VM
+        <strong>stop/start</strong>, not a reboot.</p>
+        <p class="fix"><b>Resolution</b>Diagnosed by sampling <span class="m">/proc/net/dev</span> over
+        5 s: ~2 KB/s proved a transfer was hung rather than slow, converting an open-ended wait into a
+        decision.</p>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ========== 05 ========== -->
+  <section class="phase">
+    <div class="phase-head">
+      <span class="phase-num">PHASE 05</span>
+      <span class="txt">
+        <h2>Final architecture</h2>
+        <p class="lede">Guild-B is self-contained for compute and storage. Guild-A can be powered off
+        without affecting the cluster — while still serving as an independent backup destination, which
+        is precisely the right role for it.</p>
+      </span>
+    </div>
+
+    <div class="field">
+      <div class="cluster b">
+        <div class="cluster-hd">
+          <span class="nm">GUILD-B</span><span class="sub">compute + storage · self-contained</span>
+        </div>
+        <div class="cbody">
+          <div class="tiles">
+            <div class="tile on-b"><span class="lbl">k8s-cp-1 · podA</span><span class="meta">control-plane</span></div>
+            <div class="tile on-b"><span class="lbl">k8s-w-1 · podE</span><span class="meta">+100 GB Longhorn</span></div>
+            <div class="tile on-b"><span class="lbl">k8s-w-2 · podD</span><span class="meta">+100 GB Longhorn</span></div>
+          </div>
+          <div class="store teal">
+            <span class="t">Longhorn — default StorageClass</span>
+            <span class="cap">6 volumes · 2 replicas · <span class="m">attached healthy</span></span>
+            <span class="cap">94 GB free per worker</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="gutter">
+        <svg width="46" height="60" viewBox="0 0 46 60" aria-hidden="true">
+          <g stroke="currentColor" stroke-width="1.5" fill="none" opacity="0.75" stroke-dasharray="4 3">
+            <line x1="2" y1="30" x2="40" y2="30" marker-end="url(#ah)"/>
+          </g>
+        </svg>
+        <span class="arrow-lbl">daily 02:00</span>
+      </div>
+
+      <div class="cluster a">
+        <div class="cluster-hd">
+          <span class="nm">GUILD-A</span><span class="sub">separate failure domain</span>
+        </div>
+        <div class="cbody">
+          <div class="store amber">
+            <span class="t">MinIO — Velero target</span>
+            <span class="cap"><span class="m">192.168.8.246:9000</span></span>
+            <span class="cap">30-day retention · FS-level volume backup</span>
+            <span class="cap">verified: 20/20 items, 0 errors</span>
+          </div>
+          <p class="small muted">No longer serves storage to the cluster. Its only remaining role is to
+          hold what the cluster would need to recover.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Dimension</th><th>Before</th><th>After</th></tr></thead>
+        <tbody>
+          <tr><td>Compute</td><td class="muted">Guild-A</td><td class="m">Guild-B</td></tr>
+          <tr><td>Persistent storage</td><td class="muted">Guild-A Ceph — 337 GB ceiling</td><td class="m">Longhorn on Guild-B — expandable to TBs</td></tr>
+          <tr><td>Backup target</td><td class="muted">inside the protected cluster</td><td class="m">separate cluster</td></tr>
+          <tr><td>Backups taken</td><td class="muted">zero, ever</td><td class="m">daily · 30-day retention</td></tr>
+          <tr><td>Failure domains</td><td class="muted">one</td><td class="m">two, independent</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ========== 06 ========== -->
+  <section class="phase">
+    <div class="phase-head">
+      <span class="phase-num">PHASE 06</span>
+      <span class="txt"><h2>Engineering principles applied</h2></span>
+    </div>
+
+    <div class="principles">
+      <div class="pr"><span class="t">Reversibility at every step</span><span class="d">Migration ran with <span class="m">delete</span> unset, retaining every source VM stopped. At no point did the plan contain a step that could not be undone.</span></div>
+      <div class="pr"><span class="t">Smallest blast radius first</span><span class="d">A 1 GiB test volume surfaced four distinct failure modes that would have been considerably more damaging discovered on 8–10 GiB production data.</span></div>
+      <div class="pr"><span class="t">Verify the thing, not the status</span><span class="d">ArgoCD reported <em>Healthy</em> while Loki did not exist. A checksum matched while reading the wrong volume. Every claim was checked against primary evidence — API responses, bytes on disk, HTTP probes from independent hosts.</span></div>
+      <div class="pr"><span class="t">Order by criticality</span><span class="d">Workers before control plane. Non-GitOps apps before GitOps ones. The backup target last, because everything else might need restoring.</span></div>
+      <div class="pr"><span class="t">Name the trade-offs</span><span class="d">Two-replica Longhorn has no rebuild headroom. Backups are same-site. Both are recorded in the repository as known limitations rather than quietly omitted.</span></div>
+      <div class="pr"><span class="t">Automate once proven</span><span class="d">After the manual test, the sequence was encoded into a reusable script handling every discovered failure mode — then applied uniformly to the remaining five volumes.</span></div>
+    </div>
+  </section>
+
+  <!-- ========== 07 ========== -->
+  <section class="phase">
+    <div class="phase-head">
+      <span class="phase-num">PHASE 07</span>
+      <span class="txt">
+        <h2>Known limitations &amp; next steps</h2>
+        <p class="lede">Stated plainly. A migration record that claims no residual risk isn't a record,
+        it's marketing.</p>
+      </span>
+    </div>
+
+    <div class="limits">
+      <div class="lim"><span class="t">2-replica Longhorn</span><span class="d">Two schedulable workers means no spare node to rebuild onto. Add a third worker → 3 replicas.</span></div>
+      <div class="lim"><span class="t">Backups are same-site</span><span class="d">Both clusters share a LAN and a building. Replicate the bucket to genuinely off-site object storage.</span></div>
+      <div class="lim"><span class="t">Single control plane</span><span class="d">One node, single-member etcd. Stack to three control-plane nodes for real HA.</span></div>
+      <div class="lim"><span class="t">Restore not drill-tested</span><span class="d">Backups complete and verify, but a full restore has not been rehearsed. Schedule a drill.</span></div>
+      <div class="lim"><span class="t">Stale source VMs</span><span class="d">VMs 120–122 remain stopped on Guild-A. Starting one causes an IP conflict — delete once confidence is established.</span></div>
+      <div class="lim"><span class="t">Orphaned Ceph pool</span><span class="d"><span class="m">k8s-rbd</span> still holds ~22.8 GB raw. Drop the pool to reclaim it.</span></div>
+    </div>
+  </section>
+
+  <footer class="end">
+    <span>Proxmox VE 9.2</span><span>Kubernetes v1.36.3</span><span>Longhorn 1.12.0</span>
+    <span>Cilium · ArgoCD · Velero</span><span>3 nodes · 88 pods · 6 volumes</span>
+    <span>0s workload downtime</span>
+  </footer>
+</div>
