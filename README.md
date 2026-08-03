@@ -1,5 +1,10 @@
 # guildserver-k8s
 
+> **Migration record:** this cluster was live-migrated between two Proxmox
+> clusters with zero workload downtime, then fully decoupled from the source
+> cluster's storage. Full write-up including every failure mode encountered:
+> [`docs/MIGRATION-GUILD-A-TO-GUILD-B.md`](docs/MIGRATION-GUILD-A-TO-GUILD-B.md)
+
 [![validate](https://github.com/davidpius95/guildserver-k8s/actions/workflows/validate.yml/badge.svg)](https://github.com/davidpius95/guildserver-k8s/actions/workflows/validate.yml)
 [![Open in Gitpod](https://img.shields.io/badge/Gitpod-ready--to--code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/davidpius95/guildserver-k8s)
 
