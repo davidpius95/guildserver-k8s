@@ -1,0 +1,36 @@
+# MinIO on Guild-A — off-cluster backup target for the Guild-B cluster's Velero.
+#
+# Runs on the Guild-A "mediastack" VM (192.168.8.246), deliberately OUTSIDE the
+# Kubernetes cluster it protects. The previous target was a MinIO pod inside that
+# cluster, backed by a PVC in the same cluster — it could never have restored
+# itself.
+#
+# Deploy:
+#   mkdir -p /opt/velero-minio && cd /opt/velero-minio
+#   # create .env (chmod 600) with:
+#   #   MINIO_ROOT_USER=velero
+#   #   MINIO_ROOT_PASSWORD=<generated>
+#   docker compose up -d
+#   # then create the bucket:
+#   docker run --rm --network host --entrypoint sh minio/mc:latest -c \
+#     "mc alias set gb http://127.0.0.1:9000 \$USER \$PASS && mc mb -p gb/velero"
+#
+# The same credentials go into the cluster's `velero-credentials` Secret, key
+# `cloud`, in AWS credentials-file format:
+#   [default]
+#   aws_access_key_id=<user>
+#   aws_secret_access_key=<password>
+
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: velero-minio
+    command: server /data --console-address ":9001"
+    env_file: .env
+    ports:
+      - 9000:9000     # S3 API — what Velero talks to
+      - 9001:9001     # web console
+    volumes:
+      # On the 150G disk, not the VM root filesystem.
+      - /data/backups/minio:/data
+    restart: unless-stopped
