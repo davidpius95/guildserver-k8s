@@ -59,7 +59,7 @@ spec:
           ingress:
             enabled: true
             ingressClassName: nginx
-            hosts: [grafana.guildserver.io]
+            hosts: [grafana.guildserver.io, grafana.guild-technologies.com]
           # Loki datasource is provided by the loki-stack chart's own datasource
           # ConfigMap (with isDefault:false), so we don't add it here to avoid a duplicate.
   syncPolicy:

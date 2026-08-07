@@ -29,6 +29,10 @@ spec:
               paths:
                 - path: /
                   type: Prefix
+            - host: headlamp.guild-technologies.com
+              paths:
+                - path: /
+                  type: Prefix
   syncPolicy:
     automated: {prune: true, selfHeal: true}
     syncOptions:
